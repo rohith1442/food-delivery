@@ -1,0 +1,668 @@
+{
+  "info": {
+    "name": "Food Delivery Backend API",
+    "description": "Postman collection for the current NestJS backend. Update the variables before testing protected endpoints.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health & Firebase",
+      "item": [
+        {
+          "name": "GET /",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": [""]
+            }
+          }
+        },
+        {
+          "name": "GET /firebase/test",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/firebase/test",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["firebase", "test"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "POST /auth/register/merchant",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Jane Merchant\",\n  \"businessName\": \"Green Bowl Cafe\"\n}" },
+            "url": "{{baseUrl}}/auth/register/merchant"
+          }
+        },
+        {
+          "name": "POST /auth/register/delivery",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Alex Delivery\"\n}" },
+            "url": "{{baseUrl}}/auth/register/delivery"
+          }
+        },
+        {
+          "name": "GET /auth/me",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/me",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["auth", "me"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Zones & Settings",
+      "item": [
+        { "name": "GET /zones/resolve", "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/zones/resolve?latitude=12.9716&longitude=77.5946" } },
+        { "name": "GET /settings/app-config", "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/settings/app-config?app={{app}}" } }
+      ]
+    },
+    {
+      "name": "Admin",
+      "item": [
+        { "name": "GET /admin/users", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }], "url": "{{baseUrl}}/admin/users?status=PENDING" } },
+        { "name": "PATCH /admin/users/:uid/approve", "request": { "method": "PATCH", "header": [{ "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }], "url": "{{baseUrl}}/admin/users/{{uid}}/approve" } },
+        { "name": "PATCH /admin/users/:uid/reject", "request": { "method": "PATCH", "header": [{ "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }], "url": "{{baseUrl}}/admin/users/{{uid}}/reject" } },
+        { "name": "GET /admin/users/all", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }], "url": "{{baseUrl}}/admin/users/all?role=MERCHANT&status=APPROVED" } },
+        { "name": "PATCH /admin/users/:uid/status", "request": { "method": "PATCH", "header": [{ "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }, { "key": "Content-Type", "value": "application/json", "type": "text" }], "body": { "mode": "raw", "raw": "{\n  \"isActive\": true\n}" }, "url": "{{baseUrl}}/admin/users/{{uid}}/status" } },
+        { "name": "GET /admin/orders", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }], "url": "{{baseUrl}}/admin/orders?status=PENDING" } },
+        { "name": "GET /admin/orders/:orderId", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }], "url": "{{baseUrl}}/admin/orders/{{orderId}}" } },
+        { "name": "GET /admin/stores", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }], "url": "{{baseUrl}}/admin/stores" } },
+        { "name": "PATCH /admin/stores/:storeId/status", "request": { "method": "PATCH", "header": [{ "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }, { "key": "Content-Type", "value": "application/json", "type": "text" }], "body": { "mode": "raw", "raw": "{\n  \"isActive\": true\n}" }, "url": "{{baseUrl}}/admin/stores/{{storeId}}/status" } },
+        { "name": "GET /admin/zones", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }], "url": "{{baseUrl}}/admin/zones" } },
+        { "name": "POST /admin/zones", "request": { "method": "POST", "header": [{ "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }, { "key": "Content-Type", "value": "application/json", "type": "text" }], "body": { "mode": "raw", "raw": "{\n  \"name\": \"Central Zone\",\n  \"city\": \"Bengaluru\",\n  \"state\": \"Karnataka\",\n  \"centerLatitude\": 12.9716,\n  \"centerLongitude\": 77.5946,\n  \"radiusKm\": 10\n}" }, "url": "{{baseUrl}}/admin/zones" } },
+        { "name": "PATCH /admin/zones/:zoneId", "request": { "method": "PATCH", "header": [{ "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }, { "key": "Content-Type", "value": "application/json", "type": "text" }], "body": { "mode": "raw", "raw": "{\n  \"name\": \"Updated Zone\",\n  \"radiusKm\": 12\n}" }, "url": "{{baseUrl}}/admin/zones/{{zoneId}}" } },
+        { "name": "PATCH /admin/zones/:zoneId/status", "request": { "method": "PATCH", "header": [{ "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }, { "key": "Content-Type", "value": "application/json", "type": "text" }], "body": { "mode": "raw", "raw": "{\n  \"isActive\": true\n}" }, "url": "{{baseUrl}}/admin/zones/{{zoneId}}/status" } },
+        { "name": "GET /admin/modules", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }], "url": "{{baseUrl}}/admin/modules" } },
+        { "name": "PATCH /admin/modules/:moduleId/status", "request": { "method": "PATCH", "header": [{ "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }, { "key": "Content-Type", "value": "application/json", "type": "text" }], "body": { "mode": "raw", "raw": "{\n  \"isActive\": true\n}" }, "url": "{{baseUrl}}/admin/modules/{{moduleId}}/status" } },
+        { "name": "GET /admin/dashboard", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }], "url": "{{baseUrl}}/admin/dashboard" } },
+        { "name": "GET /admin/settings", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }], "url": "{{baseUrl}}/admin/settings" } },
+        { "name": "PATCH /admin/settings", "request": { "method": "PATCH", "header": [{ "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }, { "key": "Content-Type", "value": "application/json", "type": "text" }], "body": { "mode": "raw", "raw": "{\n  \"deliveryFee\": 40,\n  \"minimumOrder\": 200,\n  \"maintenanceMode\": false,\n  \"customerMinVersion\": \"1.0.0\",\n  \"customerForceUpdate\": false\n}" }, "url": "{{baseUrl}}/admin/settings" } }
+      ]
+    },
+    {
+      "name": "Stores",
+      "item": [
+        {
+          "name": "GET /stores",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/stores?moduleId={{moduleId}}&zoneId={{zoneId}}",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["stores"],
+              "query": [
+                { "key": "moduleId", "value": "{{moduleId}}" },
+                { "key": "zoneId", "value": "{{zoneId}}" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /stores/:storeId",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/stores/{{storeId}}",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["stores", "{{storeId}}"]
+            }
+          }
+        },
+        {
+          "name": "POST /merchant/store",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Green Bowl Cafe\",\n  \"moduleId\": \"module_1\",\n  \"zoneId\": \"zone_1\",\n  \"address\": \"123 Main Street, Downtown\",\n  \"latitude\": 12.9716,\n  \"longitude\": 77.5946,\n  \"minimumOrder\": 200\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/merchant/store",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["merchant", "store"]
+            }
+          }
+        },
+        {
+          "name": "GET /merchant/store",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/merchant/store",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["merchant", "store"]
+            }
+          }
+        },
+        {
+          "name": "PATCH /merchant/store/:storeId/status",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"isOpen\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/merchant/store/{{storeId}}/status",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["merchant", "store", "{{storeId}}", "status"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Addresses",
+      "item": [
+        {
+          "name": "GET /addresses",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }],
+            "url": "{{baseUrl}}/addresses"
+          }
+        },
+        {
+          "name": "POST /addresses",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"label\": \"Home\",\n  \"address\": \"123 Main Street, Downtown\",\n  \"latitude\": 12.9716,\n  \"longitude\": 77.5946\n}" },
+            "url": "{{baseUrl}}/addresses"
+          }
+        },
+        {
+          "name": "PATCH /addresses/:addressId",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"label\": \"Work\",\n  \"address\": \"456 Business Park\",\n  \"latitude\": 12.9352,\n  \"longitude\": 77.6245\n}" },
+            "url": "{{baseUrl}}/addresses/{{addressId}}"
+          }
+        },
+        {
+          "name": "PATCH /addresses/:addressId/default",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }],
+            "url": "{{baseUrl}}/addresses/{{addressId}}/default"
+          }
+        },
+        {
+          "name": "DELETE /addresses/:addressId",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }],
+            "url": "{{baseUrl}}/addresses/{{addressId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Categories",
+      "item": [
+        {
+          "name": "POST /merchant/categories",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Burgers\",\n  \"sortOrder\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/merchant/categories",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["merchant", "categories"]
+            }
+          }
+        },
+        {
+          "name": "GET /merchant/categories",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/merchant/categories",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["merchant", "categories"]
+            }
+          }
+        },
+        {
+          "name": "PATCH /merchant/categories/:categoryId",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Premium Burgers\",\n  \"sortOrder\": 2,\n  \"isActive\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/merchant/categories/{{categoryId}}",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["merchant", "categories", "{{categoryId}}"]
+            }
+          }
+        },
+        {
+          "name": "GET /stores/:storeId/categories",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/stores/{{storeId}}/categories",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["stores", "{{storeId}}", "categories"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Products",
+      "item": [
+        {
+          "name": "POST /merchant/products",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Classic Cheeseburger\",\n  \"description\": \"Double patty burger with cheese\",\n  \"categoryId\": \"{{categoryId}}\",\n  \"price\": 240,\n  \"stock\": 50,\n  \"imageUrl\": \"https://example.com/burger.jpg\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/merchant/products",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["merchant", "products"]
+            }
+          }
+        },
+        {
+          "name": "GET /merchant/products",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/merchant/products",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["merchant", "products"]
+            }
+          }
+        },
+        {
+          "name": "PATCH /merchant/products/:productId",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Classic Cheeseburger Deluxe\",\n  \"description\": \"Updated description\",\n  \"price\": 260,\n  \"stock\": 40\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/merchant/products/{{productId}}",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["merchant", "products", "{{productId}}"]
+            }
+          }
+        },
+        {
+          "name": "PATCH /merchant/products/:productId/availability",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"isAvailable\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/merchant/products/{{productId}}/availability",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["merchant", "products", "{{productId}}", "availability"]
+            }
+          }
+        },
+        {
+          "name": "DELETE /merchant/products/:productId",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/merchant/products/{{productId}}",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["merchant", "products", "{{productId}}"]
+            }
+          }
+        },
+        {
+          "name": "GET /stores/:storeId/products",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/stores/{{storeId}}/products?categoryId={{categoryId}}",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["stores", "{{storeId}}", "products"],
+              "query": [
+                { "key": "categoryId", "value": "{{categoryId}}" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /stores/:storeId/products/:productId",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/stores/{{storeId}}/products/{{productId}}",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["stores", "{{storeId}}", "products", "{{productId}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Orders",
+      "item": [
+        {
+          "name": "Customer: POST /orders",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"storeId\": \"{{storeId}}\",\n  \"items\": [\n    {\n      \"id\": \"{{productId}}\",\n      \"name\": \"Classic Cheeseburger\",\n      \"price\": 240,\n      \"quantity\": 2\n    }\n  ],\n  \"address\": {\n    \"type\": \"HOME\",\n    \"address\": \"12th Main Road, Koramangala\",\n    \"details\": \"Near Green Park\"\n  },\n  \"paymentMethod\": \"COD\",\n  \"subtotal\": 480,\n  \"deliveryFee\": 40,\n  \"total\": 520\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/orders",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["orders"]
+            }
+          }
+        },
+        {
+          "name": "Customer: GET /orders",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["orders"]
+            }
+          }
+        },
+        {
+          "name": "Customer: GET /orders/:orderId",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders/{{orderId}}",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["orders", "{{orderId}}"]
+            }
+          }
+        },
+        {
+          "name": "Merchant: GET /merchant/orders",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/merchant/orders",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["merchant", "orders"]
+            }
+          }
+        },
+        {
+          "name": "Merchant: PATCH /merchant/orders/:orderId/status",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"PREPARING\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/merchant/orders/{{orderId}}/status",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["merchant", "orders", "{{orderId}}", "status"]
+            }
+          }
+        },
+        {
+          "name": "Delivery: GET /delivery/orders",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/delivery/orders",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["delivery", "orders"]
+            }
+          }
+        },
+        {
+          "name": "Delivery: PATCH /delivery/orders/:orderId/accept",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/delivery/orders/{{orderId}}/accept",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["delivery", "orders", "{{orderId}}", "accept"]
+            }
+          }
+        },
+        {
+          "name": "Delivery: PATCH /delivery/orders/:orderId/status",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"OUT_FOR_DELIVERY\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/delivery/orders/{{orderId}}/status",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["delivery", "orders", "{{orderId}}", "status"]
+            }
+          }
+        },
+        {
+          "name": "Delivery: POST /delivery/orders/:orderId/otp/generate",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/delivery/orders/{{orderId}}/otp/generate",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["delivery", "orders", "{{orderId}}", "otp", "generate"]
+            }
+          }
+        },
+        {
+          "name": "Delivery: POST /delivery/orders/:orderId/otp/verify",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"otp\": \"123456\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/delivery/orders/{{orderId}}/otp/verify",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["delivery", "orders", "{{orderId}}", "otp", "verify"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
