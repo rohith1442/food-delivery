@@ -47,4 +47,15 @@ export class OrdersController {
       orderId,
     );
   }
+
+  @Patch(':orderId/cancel')
+  async cancelOrder(
+    @Req() request: any,
+    @Param('orderId') orderId: string,
+  ) {
+    return this.ordersService.cancelOrder(
+      request.user.uid,
+      orderId,
+    );
+  }
 }

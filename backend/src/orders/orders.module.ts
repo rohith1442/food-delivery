@@ -6,11 +6,13 @@ import { DeliveryOrdersController } from './delivery_orders.controller.js';
 import { MerchantOrdersController } from './merchant_orders.controller.js';
 import { OrdersController } from './orders.controller.js';
 import { OrdersService } from './orders.service.js';
+import { RazorpayRefundModule } from '../payments/razorpay-refund.module.js';
 
 @Module({
   imports: [
     FirebaseModule,
     AuthModule,
+    RazorpayRefundModule
   ],
   controllers: [
     OrdersController,

@@ -7,7 +7,7 @@ class OrderSuccessPage extends StatelessWidget {
     required this.paymentMethod,
   });
 
-  final int total;
+  final num total;
   final String paymentMethod;
 
   @override

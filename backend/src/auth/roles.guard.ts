@@ -7,10 +7,7 @@ import {
 import { Reflector } from '@nestjs/core';
 
 import { FirebaseService } from '../firebase/firebase.service.js';
-import {
-  ROLES_KEY,
-  UserRole,
-} from './roles.decorator.js';
+import { ROLES_KEY, UserRole } from './roles.decorator.js';
 
 interface UserDocument {
   role?: string;
@@ -25,89 +22,66 @@ export class RolesGuard implements CanActivate {
     private readonly firebaseService: FirebaseService,
   ) {}
 
-  async canActivate(
-    context: ExecutionContext,
-  ): Promise<boolean> {
-    const requiredRoles =
-      this.reflector.getAllAndOverride<UserRole[]>(
-        ROLES_KEY,
-        [
-          context.getHandler(),
-          context.getClass(),
-        ],
-      );
+  async canActivate(context: ExecutionContext): Promise<boolean> {
+    const requiredRoles = this.reflector.getAllAndOverride<UserRole[]>(
+      ROLES_KEY,
+      [context.getHandler(), context.getClass()],
+    );
+        console.log('requiredRoles:', requiredRoles);
 
-    if (
-      !requiredRoles ||
-      requiredRoles.length === 0
-    ) {
+    console.log('=== ROLES GUARD CALLED ===');
+
+    if (!requiredRoles || requiredRoles.length === 0) {
       return true;
     }
 
-    const request =
-      context.switchToHttp().getRequest();
+    const request = context.switchToHttp().getRequest();
 
-    const uid =
-      request.user?.uid;
+    const uid = request.user?.uid;
+      console.log('uid:', request.user?.uid);
 
     if (!uid) {
-      throw new ForbiddenException(
-        'Authenticated user is required',
-      );
+      throw new ForbiddenException('Authenticated user is required');
     }
 
-    const user =
-      (await this.firebaseService
-        .getUserById(
-          uid,
-        )) as UserDocument | null;
+    const user = (await this.firebaseService.getUserById(
+      uid,
+    )) as UserDocument | null;
+
+        console.log('userProfile:', user);
 
     if (!user) {
-      throw new ForbiddenException(
-        'User profile not found',
-      );
+      console.log('User profile not found for uid:', uid);
+      throw new ForbiddenException('User profile not found');
     }
 
-    const role =
-      user.role
-        ?.trim()
-        .toUpperCase();
+    const role = user.role?.trim().toUpperCase();
 
-    const status =
-      user.status
-        ?.trim()
-        .toUpperCase();
+    const status = user.status?.trim().toUpperCase();
 
     if (!role) {
-      throw new ForbiddenException(
-        'User role is not configured',
-      );
+      throw new ForbiddenException('User role is not configured');
     }
 
-    if (
-      !requiredRoles.includes(
-        role as UserRole,
-      )
-    ) {
+    if (!requiredRoles.includes(role as UserRole)) {
       throw new ForbiddenException(
         'You are not authorized to access this resource',
       );
     }
 
-    if (
-      status !== 'ACTIVE' ||
-      user.isActive !== true
-    ) {
-      throw new ForbiddenException(
-        'Your account is not active',
-      );
+    if (status !== 'ACTIVE' || user.isActive !== true) {
+      throw new ForbiddenException('Your account is not active');
     }
 
-    request.user.role =
-      role;
+  
 
-    request.user.status =
-      status;
+
+
+  
+
+    request.user.role = role;
+
+    request.user.status = status;
 
     return true;
   }

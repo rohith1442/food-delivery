@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 
 import { FirebaseService } from '../firebase/firebase.service.js';
+import { RazorpayRefundService } from '../payments/razorpay-refund.service.js';
 
 export interface PrepareCheckoutRequest {
   storeId: string;
@@ -144,7 +145,10 @@ interface OrderStoreLocation {
 export class OrdersService {
   private readonly logger = new Logger(OrdersService.name);
 
-  constructor(private readonly firebaseService: FirebaseService) {}
+  constructor(
+    private readonly firebaseService: FirebaseService,
+    private readonly razorpayRefundService: RazorpayRefundService,
+  ) {}
 
   // --------------------------------------------------
   // CUSTOMER
@@ -813,11 +817,19 @@ export class OrdersService {
     try {
       // --------------------------------------------------
       // REJECTED
-      // Restore stock + update order atomically
       // --------------------------------------------------
 
       if (status === 'REJECTED') {
         const updatedAt = new Date().toISOString();
+
+        /*
+         * We need these after the transaction finishes.
+         *
+         * Do NOT call Razorpay from inside a Firestore
+         * transaction because Firestore may retry the
+         * transaction callback.
+         */
+        let rejectedOrder: OrderDocument | undefined;
 
         await db.runTransaction(async (transaction) => {
           const orderSnapshot = await transaction.get(orderRef);
@@ -844,7 +856,7 @@ export class OrdersService {
           }
 
           // ---------------------------------------------
-          // READ ALL PRODUCTS FIRST
+          // READ PRODUCTS
           // ---------------------------------------------
 
           const productRefs = order.items.map((item) =>
@@ -881,8 +893,6 @@ export class OrdersService {
             transaction.update(productRefs[index], {
               stock: restoredStock,
 
-              // Re-enable because
-              // stock is available again.
               isAvailable: true,
 
               updatedAt,
@@ -894,27 +904,101 @@ export class OrdersService {
           }
 
           // ---------------------------------------------
-          // UPDATE ORDER
+          // REJECT ORDER
           // ---------------------------------------------
 
           transaction.update(orderRef, {
             status: 'REJECTED',
             updatedAt,
           });
+
+          rejectedOrder = order;
         });
+
+        if (!rejectedOrder) {
+          throw new Error('Rejected order details are missing');
+        }
 
         this.logger.log(`Order rejected and stock restored orderId=${orderId}`);
 
+        // ------------------------------------------------
+        // REFUND ONLINE PAID ORDER
+        // ------------------------------------------------
+
+        let refundStatus: string | null = null;
+
+        if (
+          rejectedOrder.paymentMethod === 'ONLINE' &&
+          rejectedOrder.paymentStatus === 'PAID'
+        ) {
+          if (!rejectedOrder.paymentId) {
+            this.logger.error(
+              `Paid online order is missing paymentId orderId=${orderId}`,
+            );
+
+            throw new BadRequestException(
+              'Order was rejected but payment information is missing',
+            );
+          }
+
+          try {
+            const refund = await this.razorpayRefundService.refundPayment(
+              rejectedOrder.paymentId,
+              'MERCHANT_REJECTED_ORDER',
+            );
+
+            refundStatus = refund.status;
+
+            this.logger.log(
+              `Refund requested for rejected order orderId=${orderId} paymentId=${rejectedOrder.paymentId} status=${refund.status}`,
+            );
+          } catch (refundError) {
+            /*
+             * Do NOT reverse the order rejection.
+             *
+             * Stock restoration and REJECTED status have
+             * already completed successfully.
+             */
+
+            this.logger.error(
+              `Order rejected but refund failed orderId=${orderId} paymentId=${rejectedOrder.paymentId}`,
+              refundError instanceof Error
+                ? refundError.stack
+                : String(refundError),
+            );
+
+            return {
+              success: true,
+
+              orderId,
+
+              status: 'REJECTED',
+
+              refundStatus: 'REFUND_FAILED',
+
+              message:
+                'Order rejected successfully, but refund requires review.',
+
+              updatedAt,
+            };
+          }
+        }
+
         return {
           success: true,
+
           orderId,
+
           status: 'REJECTED',
+
+          refundStatus,
+
           updatedAt,
         };
       }
 
       // --------------------------------------------------
-      // NORMAL MERCHANT STATUS FLOW
+      // NORMAL MERCHANT FLOW
       // --------------------------------------------------
 
       const snapshot = await orderRef.get();
@@ -963,8 +1047,11 @@ export class OrdersService {
 
       return {
         success: true,
+
         orderId,
+
         status,
+
         updatedAt,
       };
     } catch (error) {
@@ -1245,5 +1332,174 @@ export class OrdersService {
     }
 
     return deliveryFee;
+  }
+
+  async cancelOrder(customerId: string, orderId: string) {
+    const db = this.firebaseService.getFirestore();
+
+    const orderRef = db.collection('orders').doc(orderId);
+
+    const updatedAt = new Date().toISOString();
+
+    let cancelledOrder: OrderDocument | undefined;
+
+    await db.runTransaction(async (transaction) => {
+      const orderSnapshot = await transaction.get(orderRef);
+
+      if (!orderSnapshot.exists) {
+        throw new NotFoundException('Order not found');
+      }
+
+      const order = {
+        id: orderSnapshot.id,
+        ...orderSnapshot.data(),
+      } as OrderDocument;
+
+      if (order.customerId !== customerId) {
+        throw new ForbiddenException('You do not have access to this order');
+      }
+
+      /*
+       * MVP rule:
+       * customer may cancel only before
+       * merchant accepts the order.
+       */
+      if (order.status !== 'VENDOR_PENDING') {
+        throw new BadRequestException(
+          `Cannot cancel order from ${order.status}`,
+        );
+      }
+
+      const productRefs = order.items.map((item) =>
+        db
+          .collection('stores')
+          .doc(order.storeId)
+          .collection('products')
+          .doc(item.id),
+      );
+
+      const productSnapshots = await Promise.all(
+        productRefs.map((productRef) => transaction.get(productRef)),
+      );
+
+      for (let index = 0; index < productSnapshots.length; index++) {
+        const productSnapshot = productSnapshots[index];
+
+        const orderItem = order.items[index];
+
+        if (!productSnapshot.exists) {
+          throw new NotFoundException(
+            `Product ${orderItem.id} not found while restoring stock`,
+          );
+        }
+
+        const product = productSnapshot.data() as ProductDocument;
+
+        const restoredStock = product.stock + orderItem.quantity;
+
+        transaction.update(productRefs[index], {
+          stock: restoredStock,
+
+          isAvailable: true,
+
+          updatedAt,
+        });
+      }
+
+      transaction.update(orderRef, {
+        status: 'CANCELLED',
+        updatedAt,
+      });
+
+      cancelledOrder = order;
+    });
+
+    if (!cancelledOrder) {
+      throw new Error('Cancelled order details are missing');
+    }
+
+    this.logger.log(
+      `Customer cancelled order orderId=${orderId} customerId=${customerId}`,
+    );
+
+    let refundStatus: string | null = null;
+
+    /*
+     * COD:
+     * no refund required.
+     *
+     * ONLINE + PAID:
+     * trigger Razorpay refund.
+     */
+    if (
+      cancelledOrder.paymentMethod === 'ONLINE' &&
+      cancelledOrder.paymentStatus === 'PAID'
+    ) {
+      if (!cancelledOrder.paymentId) {
+        this.logger.error(
+          `Cancelled paid online order is missing paymentId orderId=${orderId}`,
+        );
+
+        return {
+          success: true,
+
+          orderId,
+
+          status: 'CANCELLED',
+
+          refundStatus: 'REFUND_FAILED',
+
+          message: 'Order cancelled but payment information is missing.',
+
+          updatedAt,
+        };
+      }
+
+      try {
+        const refund = await this.razorpayRefundService.refundPayment(
+          cancelledOrder.paymentId,
+          'CUSTOMER_CANCELLED_ORDER',
+        );
+
+        refundStatus = refund.status;
+
+        this.logger.log(
+          `Refund requested for cancelled order orderId=${orderId} paymentId=${cancelledOrder.paymentId} status=${refund.status}`,
+        );
+      } catch (refundError) {
+        this.logger.error(
+          `Order cancelled but refund failed orderId=${orderId} paymentId=${cancelledOrder.paymentId}`,
+          refundError instanceof Error
+            ? refundError.stack
+            : String(refundError),
+        );
+
+        return {
+          success: true,
+
+          orderId,
+
+          status: 'CANCELLED',
+
+          refundStatus: 'REFUND_FAILED',
+
+          message: 'Order cancelled successfully, but refund requires review.',
+
+          updatedAt,
+        };
+      }
+    }
+
+    return {
+      success: true,
+
+      orderId,
+
+      status: 'CANCELLED',
+
+      refundStatus,
+
+      updatedAt,
+    };
   }
 }

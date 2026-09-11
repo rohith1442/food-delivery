@@ -24,6 +24,12 @@ export class PaymentsController {
     @Req() request: any,
     @Body() body: any,
   ) {
+      console.log('=== RAZORPAY ORDER REQUEST RECEIVED ===');
+
+  console.log('user:', request.user);
+
+  console.log('body:', body);
+    console.log('createRazorpayOrder called with body:', body);
     return this.paymentsService.createRazorpayOrder(
       request.user.uid,
       body,
