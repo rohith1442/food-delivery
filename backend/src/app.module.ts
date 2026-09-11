@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
 
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
@@ -13,9 +14,13 @@ import { SettingsModule } from './settings/settings.module.js';
 import { ZonesModule } from './zones/zones.module.js';
 import { AddressesModule } from './addresses/addresses.module.js';
 import { UploadsModule } from './uploads/uploads.module.js';
+import { PaymentsModule } from './payments/payments.module.js';
 
 @Module({
   imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+    }),
     FirebaseModule,
     AuthModule,
     OrdersModule,
@@ -26,8 +31,8 @@ import { UploadsModule } from './uploads/uploads.module.js';
     SettingsModule,
     ZonesModule,
     AddressesModule,
-    UploadsModule
-    
+    UploadsModule,
+    PaymentsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
