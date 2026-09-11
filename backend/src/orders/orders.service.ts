@@ -8,6 +8,20 @@ import {
 
 import { FirebaseService } from '../firebase/firebase.service.js';
 
+export interface PrepareCheckoutRequest {
+  storeId: string;
+  items: CreateOrderItem[];
+  addressId: string;
+}
+
+export interface PreparedCheckout {
+  storeId: string;
+  customerId: string;
+  subtotal: number;
+  deliveryFee: number;
+  total: number;
+}
+
 export interface CreateOrderItem {
   id: string;
   name: string;
