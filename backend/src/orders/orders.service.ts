@@ -75,6 +75,12 @@ export interface OrderDocument {
 
   paymentMethod: string;
 
+  paymentStatus: 'PENDING' | 'PAID' | 'FAILED';
+
+  paymentId?: string | null;
+
+  providerPaymentId?: string | null;
+
   subtotal: number;
   deliveryFee: number;
   total: number;
@@ -144,7 +150,17 @@ export class OrdersService {
   // CUSTOMER
   // --------------------------------------------------
 
-  async createOrder(uid: string, data: CreateOrderRequest) {
+  async createOrder(
+    uid: string,
+    data: CreateOrderRequest,
+    options?: {
+      allowOnline?: boolean;
+      orderId?: string;
+      paymentId?: string;
+      providerPaymentId?: string;
+      expectedAmountInPaise?: number;
+    },
+  ) {
     this.logger.log(
       `Create order request received userId=${uid} storeId=${data.storeId}`,
     );
@@ -152,13 +168,11 @@ export class OrdersService {
     try {
       if (!data.storeId?.trim()) {
         this.logger.warn(`Create order failed: storeId missing userId=${uid}`);
-
         throw new BadRequestException('Store ID is required');
       }
 
       if (!data.items?.length) {
         this.logger.warn(`Create order failed: no items userId=${uid}`);
-
         throw new BadRequestException('Order must contain items');
       }
 
@@ -176,6 +190,18 @@ export class OrdersService {
         );
 
         throw new BadRequestException('Payment method is required');
+      }
+
+      const paymentMethod = data.paymentMethod.trim().toUpperCase();
+
+      if (!['COD', 'ONLINE'].includes(paymentMethod)) {
+        throw new BadRequestException('Payment method must be COD or ONLINE');
+      }
+
+      if (paymentMethod === 'ONLINE' && options?.allowOnline !== true) {
+        throw new BadRequestException(
+          'Online orders must be created through payment verification',
+        );
       }
 
       const requestedProductIds = new Set<string>();
@@ -204,15 +230,34 @@ export class OrdersService {
 
       const addressRef = db.collection('addresses').doc(data.addressId);
 
-      const orderRef = db.collection('orders').doc();
+      const orderRef = options?.orderId
+        ? db.collection('orders').doc(options.orderId)
+        : db.collection('orders').doc();
 
       const now = new Date().toISOString();
 
       const order = await db.runTransaction(async (transaction) => {
-        this.logger.debug(`Starting order transaction orderId=${orderRef.id}`);
+        // --------------------------------------------
+        // IDEMPOTENCY
+        // --------------------------------------------
+
+        const existingOrderSnapshot = await transaction.get(orderRef);
+
+        if (existingOrderSnapshot.exists) {
+          const existingOrder = {
+            id: existingOrderSnapshot.id,
+            ...existingOrderSnapshot.data(),
+          } as OrderDocument;
+
+          if (existingOrder.customerId !== uid) {
+            throw new ForbiddenException('Order already exists');
+          }
+
+          return existingOrder;
+        }
 
         // --------------------------------------------
-        // READ STORE + DELIVERY ADDRESS
+        // STORE + ADDRESS
         // --------------------------------------------
 
         const storeSnapshot = await transaction.get(storeRef);
@@ -237,12 +282,6 @@ export class OrdersService {
           ...addressSnapshot.data(),
         } as AddressDocument;
 
-        // Do not allow a customer to use another
-        // customer's saved address.
-        //
-        // Return the same "not found" response so we
-        // don't reveal whether another user's address
-        // document exists.
         if (deliveryAddress.userId !== uid) {
           throw new NotFoundException('Delivery address not found');
         }
@@ -255,8 +294,6 @@ export class OrdersService {
           throw new BadRequestException('Store is currently closed');
         }
 
-        // Customer delivery address and store must
-        // belong to the same serviceable zone.
         if (
           !deliveryAddress.zoneId ||
           deliveryAddress.zoneId !== store.zoneId
@@ -267,7 +304,7 @@ export class OrdersService {
         }
 
         // --------------------------------------------
-        // READ PRODUCTS
+        // PRODUCTS
         // --------------------------------------------
 
         const productRefs = data.items.map((item) =>
@@ -281,10 +318,6 @@ export class OrdersService {
         const productSnapshots = await Promise.all(
           productRefs.map((productRef) => transaction.get(productRef)),
         );
-
-        // --------------------------------------------
-        // VALIDATE PRODUCTS
-        // --------------------------------------------
 
         const authoritativeItems: CreateOrderItem[] = [];
 
@@ -304,17 +337,17 @@ export class OrdersService {
             ...productSnapshot.data(),
           } as ProductDocument;
 
-          this.logger.debug(
-            `Validating product=${product.name} requestedQty=${requestedItem.quantity} stock=${product.stock}`,
-          );
-
           if (!product.isAvailable) {
             throw new BadRequestException(
               `${product.name} is currently unavailable`,
             );
           }
 
-          if (typeof product.price !== 'number' || product.price < 0) {
+          if (
+            typeof product.price !== 'number' ||
+            !Number.isFinite(product.price) ||
+            product.price < 0
+          ) {
             throw new BadRequestException(
               `Invalid price configured for ${product.name}`,
             );
@@ -338,7 +371,7 @@ export class OrdersService {
         }
 
         // --------------------------------------------
-        // AUTHORITATIVE PRICING
+        // PRICING
         // --------------------------------------------
 
         const subtotal = authoritativeItems.reduce(
@@ -356,8 +389,25 @@ export class OrdersService {
 
         const total = subtotal + deliveryFee;
 
+        if (!Number.isFinite(total) || total <= 0) {
+          throw new BadRequestException('Invalid order total');
+        }
+
+        if (
+          paymentMethod === 'ONLINE' &&
+          options?.expectedAmountInPaise !== undefined
+        ) {
+          const calculatedAmountInPaise = Math.round(total * 100);
+
+          if (calculatedAmountInPaise !== options.expectedAmountInPaise) {
+            throw new BadRequestException(
+              'Order amount changed after payment was initiated',
+            );
+          }
+        }
+
         // --------------------------------------------
-        // SNAPSHOT DELIVERY ADDRESS
+        // DELIVERY ADDRESS SNAPSHOT
         // --------------------------------------------
 
         const authoritativeDeliveryAddress: OrderDeliveryAddress = {
@@ -369,64 +419,69 @@ export class OrdersService {
           zoneId: deliveryAddress.zoneId,
         };
 
-       // --------------------------------------------
-// VALIDATE + SNAPSHOT STORE LOCATION
-// --------------------------------------------
+        // --------------------------------------------
+        // STORE LOCATION
+        // --------------------------------------------
 
-if (
-  typeof store.latitude !== 'number' ||
-  !Number.isFinite(store.latitude) ||
-  store.latitude < -90 ||
-  store.latitude > 90 ||
-  typeof store.longitude !== 'number' ||
-  !Number.isFinite(store.longitude) ||
-  store.longitude < -180 ||
-  store.longitude > 180
-) {
-  throw new BadRequestException(
-    'Store location is not configured',
-  );
-}
+        if (
+          typeof store.latitude !== 'number' ||
+          !Number.isFinite(store.latitude) ||
+          store.latitude < -90 ||
+          store.latitude > 90 ||
+          typeof store.longitude !== 'number' ||
+          !Number.isFinite(store.longitude) ||
+          store.longitude < -180 ||
+          store.longitude > 180
+        ) {
+          throw new BadRequestException('Store location is not configured');
+        }
 
-// --------------------------------------------
-// CREATE ORDER
-// --------------------------------------------
+        // --------------------------------------------
+        // CREATE ORDER
+        // --------------------------------------------
 
-const newOrder: OrderDocument = {
-  id: orderRef.id,
+        const newOrder: OrderDocument = {
+          id: orderRef.id,
 
-  customerId: uid,
+          customerId: uid,
 
-  storeId: store.id,
-  storeName: store.name,
-  storeAddress: store.address,
-  storeLocation: {
-    latitude: store.latitude,
-    longitude: store.longitude,
-  },
+          storeId: store.id,
+          storeName: store.name,
+          storeAddress: store.address,
 
-  merchantId: store.merchantId,
+          storeLocation: {
+            latitude: store.latitude,
+            longitude: store.longitude,
+          },
 
-  riderId: null,
+          merchantId: store.merchantId,
 
-  items: authoritativeItems,
+          riderId: null,
 
-  deliveryAddress: authoritativeDeliveryAddress,
+          items: authoritativeItems,
 
-  paymentMethod: data.paymentMethod,
+          deliveryAddress: authoritativeDeliveryAddress,
 
-  subtotal,
-  deliveryFee,
-  total,
+          paymentMethod,
 
-  status: 'VENDOR_PENDING',
+          paymentStatus: paymentMethod === 'ONLINE' ? 'PAID' : 'PENDING',
 
-  createdAt: now,
-  updatedAt: now,
+          paymentId: options?.paymentId ?? null,
 
-  deliveryOtp: null,
-  deliveryOtpCreatedAt: null,
-};
+          providerPaymentId: options?.providerPaymentId ?? null,
+
+          subtotal,
+          deliveryFee,
+          total,
+
+          status: 'VENDOR_PENDING',
+
+          createdAt: now,
+          updatedAt: now,
+
+          deliveryOtp: null,
+          deliveryOtpCreatedAt: null,
+        };
 
         // --------------------------------------------
         // DECREMENT STOCK
@@ -486,6 +541,158 @@ const newOrder: OrderDocument = {
 
       throw error;
     }
+  }
+
+  async calculateCheckout(
+    uid: string,
+    data: CreateOrderRequest,
+  ): Promise<{
+    storeId: string;
+    customerId: string;
+    subtotal: number;
+    deliveryFee: number;
+    total: number;
+  }> {
+    if (!data.storeId?.trim()) {
+      throw new BadRequestException('Store ID is required');
+    }
+
+    if (!data.items?.length) {
+      throw new BadRequestException('Order must contain items');
+    }
+
+    if (!data.addressId?.trim()) {
+      throw new BadRequestException('Delivery address is required');
+    }
+
+    const requestedProductIds = new Set<string>();
+
+    for (const item of data.items) {
+      if (!item.id?.trim()) {
+        throw new BadRequestException('Product ID is required');
+      }
+
+      if (!Number.isInteger(item.quantity) || item.quantity <= 0) {
+        throw new BadRequestException(
+          `Invalid quantity for product ${item.id}`,
+        );
+      }
+
+      if (requestedProductIds.has(item.id)) {
+        throw new BadRequestException(`Duplicate product ${item.id}`);
+      }
+
+      requestedProductIds.add(item.id);
+    }
+
+    const db = this.firebaseService.getFirestore();
+
+    const storeSnapshot = await db.collection('stores').doc(data.storeId).get();
+
+    if (!storeSnapshot.exists) {
+      throw new NotFoundException('Store not found');
+    }
+
+    const store = {
+      id: storeSnapshot.id,
+      ...storeSnapshot.data(),
+    } as StoreDocument;
+
+    if (!store.isActive) {
+      throw new BadRequestException('Store is currently unavailable');
+    }
+
+    if (!store.isOpen) {
+      throw new BadRequestException('Store is currently closed');
+    }
+
+    const addressSnapshot = await db
+      .collection('addresses')
+      .doc(data.addressId)
+      .get();
+
+    if (!addressSnapshot.exists) {
+      throw new NotFoundException('Delivery address not found');
+    }
+
+    const deliveryAddress = {
+      id: addressSnapshot.id,
+      ...addressSnapshot.data(),
+    } as AddressDocument;
+
+    if (deliveryAddress.userId !== uid) {
+      throw new NotFoundException('Delivery address not found');
+    }
+
+    if (!deliveryAddress.zoneId || deliveryAddress.zoneId !== store.zoneId) {
+      throw new BadRequestException(
+        'Store does not deliver to the selected address',
+      );
+    }
+
+    let subtotal = 0;
+
+    for (const item of data.items) {
+      const productSnapshot = await db
+        .collection('stores')
+        .doc(store.id)
+        .collection('products')
+        .doc(item.id)
+        .get();
+
+      if (!productSnapshot.exists) {
+        throw new NotFoundException(`Product ${item.id} not found`);
+      }
+
+      const product = {
+        id: productSnapshot.id,
+        ...productSnapshot.data(),
+      } as ProductDocument;
+
+      if (!product.isAvailable) {
+        throw new BadRequestException(
+          `${product.name} is currently unavailable`,
+        );
+      }
+
+      if (
+        typeof product.price !== 'number' ||
+        !Number.isFinite(product.price) ||
+        product.price < 0
+      ) {
+        throw new BadRequestException(
+          `Invalid price configured for ${product.name}`,
+        );
+      }
+
+      if (typeof product.stock !== 'number' || product.stock < item.quantity) {
+        throw new BadRequestException(`Insufficient stock for ${product.name}`);
+      }
+
+      subtotal += product.price * item.quantity;
+    }
+
+    if (store.minimumOrder > 0 && subtotal < store.minimumOrder) {
+      throw new BadRequestException(
+        `Minimum order amount is ₹${store.minimumOrder}`,
+      );
+    }
+
+    const deliveryFee = await this.getDeliveryFee();
+
+    const total = subtotal + deliveryFee;
+
+    if (!Number.isFinite(total) || total <= 0) {
+      throw new BadRequestException('Invalid order total');
+    }
+
+    return {
+      storeId: store.id,
+      customerId: uid,
+      subtotal,
+      deliveryFee,
+      total,
+    };
   }
 
   async getCustomerOrders(uid: string) {

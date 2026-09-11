@@ -54,6 +54,18 @@
           }
         },
         {
+          "name": "POST /auth/register/customer",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Sam Customer\"\n}" },
+            "url": "{{baseUrl}}/auth/register/customer"
+          }
+        },
+        {
           "name": "POST /auth/register/delivery",
           "request": {
             "method": "POST",
@@ -474,6 +486,80 @@
               "host": ["localhost"],
               "port": "3000",
               "path": ["stores", "{{storeId}}", "products", "{{productId}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Payments",
+      "item": [
+        {
+          "name": "POST /payments/razorpay/order",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 520,\n  \"currency\": \"INR\",\n  \"receipt\": \"order_{{orderId}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/payments/razorpay/order",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["payments", "razorpay", "order"]
+            }
+          }
+        },
+        {
+          "name": "POST /payments/razorpay/verify",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"razorpay_order_id\": \"order_123\",\n  \"razorpay_payment_id\": \"pay_123\",\n  \"razorpay_signature\": \"signature_123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/payments/razorpay/verify",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["payments", "razorpay", "verify"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Uploads",
+      "item": [
+        {
+          "name": "POST /merchant/products/images",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/merchant/products/images",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["merchant", "products", "images"]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "file", "type": "file", "src": [] }
+              ]
             }
           }
         }
