@@ -8,6 +8,7 @@ import {
 
 import { FirebaseService } from '../firebase/firebase.service.js';
 import { RazorpayRefundService } from '../payments/razorpay-refund.service.js';
+import { NotificationsService } from '../notifications/notifications.service.js';
 
 export interface PrepareCheckoutRequest {
   storeId: string;
@@ -148,6 +149,7 @@ export class OrdersService {
   constructor(
     private readonly firebaseService: FirebaseService,
     private readonly razorpayRefundService: RazorpayRefundService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   // --------------------------------------------------
@@ -240,7 +242,7 @@ export class OrdersService {
 
       const now = new Date().toISOString();
 
-      const order = await db.runTransaction(async (transaction) => {
+      const result = await db.runTransaction(async (transaction) => {
         // --------------------------------------------
         // IDEMPOTENCY
         // --------------------------------------------
@@ -257,7 +259,10 @@ export class OrdersService {
             throw new ForbiddenException('Order already exists');
           }
 
-          return existingOrder;
+          return {
+            order: existingOrder,
+            created: false,
+          };
         }
 
         // --------------------------------------------
@@ -513,16 +518,33 @@ export class OrdersService {
 
         transaction.set(orderRef, newOrder);
 
-        return newOrder;
+        return {
+          order: newOrder,
+          created: true,
+        };
       });
 
+      const { order, created } = result;
+
+      if (created) {
+        await this.notificationsService.sendToUser(order.merchantId, {
+          title: 'New Order',
+          body: `You received a new order from ${order.storeName}`,
+          data: {
+            type: 'NEW_ORDER',
+            orderId: order.id,
+            storeId: order.storeId,
+          },
+        });
+      }
+
       this.logger.log(
-        `Order created successfully orderId=${orderRef.id} userId=${uid} total=${order.total}`,
+        `Order created successfully orderId=${order.id} userId=${uid} total=${order.total}`,
       );
 
       return {
         success: true,
-        orderId: orderRef.id,
+        orderId: order.id,
         order,
       };
     } catch (error) {

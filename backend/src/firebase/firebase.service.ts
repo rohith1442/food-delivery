@@ -3,6 +3,10 @@ import { cert, getApps, initializeApp } from 'firebase-admin/app';
 import { getAuth, Auth } from 'firebase-admin/auth';
 import { getFirestore, Firestore } from 'firebase-admin/firestore';
 import { getStorage, Storage } from 'firebase-admin/storage';
+import {
+  getMessaging,
+  Messaging,
+} from 'firebase-admin/messaging';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
@@ -12,6 +16,7 @@ export class FirebaseService implements OnModuleInit {
   private firestore!: Firestore;
   private auth!: Auth;
   private storage!: Storage;
+  private messaging!: Messaging;
 
   onModuleInit() {
     const apps = getApps();
@@ -31,12 +36,14 @@ export class FirebaseService implements OnModuleInit {
                 ),
               ),
             ),
-            storageBucket: 'food-delivery-e5521.firebasestorage.app',
+            storageBucket:
+              'food-delivery-e5521.firebasestorage.app',
           });
 
     this.firestore = getFirestore(app);
     this.auth = getAuth(app);
     this.storage = getStorage(app);
+    this.messaging = getMessaging(app);
   }
 
   getFirestore(): Firestore {
@@ -49,6 +56,10 @@ export class FirebaseService implements OnModuleInit {
 
   getStorage(): Storage {
     return this.storage;
+  }
+
+  getMessaging(): Messaging {
+    return this.messaging;
   }
 
   async getUserById(

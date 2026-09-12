@@ -15,7 +15,7 @@ import { ZonesModule } from './zones/zones.module.js';
 import { AddressesModule } from './addresses/addresses.module.js';
 import { UploadsModule } from './uploads/uploads.module.js';
 import { PaymentsModule } from './payments/payments.module.js';
-
+import { NotificationsModule } from './notifications/notifications.module.js';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -33,6 +33,7 @@ import { PaymentsModule } from './payments/payments.module.js';
     AddressesModule,
     UploadsModule,
     PaymentsModule,
+    NotificationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

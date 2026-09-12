@@ -7,11 +7,13 @@ import { OrdersModule } from '../orders/orders.module.js';
 import { PaymentsController } from './payments.controller.js';
 import { PaymentsService } from './payments.service.js';
 import { RazorpayWebhookController } from './razorpay-webhook.controller.js';
+import { RazorpayRefundModule } from './razorpay-refund.module.js';
 
 @Module({
   imports: [
     AuthModule,
     FirebaseModule,
+    RazorpayRefundModule,
     OrdersModule,
   ],
   controllers: [

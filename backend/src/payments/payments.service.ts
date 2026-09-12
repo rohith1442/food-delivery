@@ -10,6 +10,7 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 
 import { FirebaseService } from '../firebase/firebase.service.js';
 import { CreateOrderRequest, OrdersService } from '../orders/orders.service.js';
+import { RazorpayRefundService } from './razorpay-refund.service.js';
 
 interface CreateRazorpayOrderRequest {
   storeId: string;
@@ -49,6 +50,7 @@ export class PaymentsService {
     private readonly configService: ConfigService,
     private readonly firebaseService: FirebaseService,
     private readonly ordersService: OrdersService,
+    private readonly razorpayRefundService: RazorpayRefundService,
   ) {
     const keyId = this.configService.get<string>('RAZORPAY_KEY_ID');
 
@@ -458,10 +460,6 @@ export class PaymentsService {
         order: result.order,
       };
     } catch (orderError) {
-      // --------------------------------------------
-      // PAYMENT CAPTURED BUT ORDER FAILED
-      // --------------------------------------------
-
       const orderCreationFailedAt = new Date().toISOString();
 
       this.logger.error(
@@ -469,56 +467,35 @@ export class PaymentsService {
         orderError instanceof Error ? orderError.stack : undefined,
       );
 
+      /*
+       * Mark as PAID first because Razorpay already
+       * confirmed that the payment was captured.
+       *
+       * RazorpayRefundService only accepts PAID payments
+       * for a new refund claim.
+       */
       await paymentRef.update({
-        status: 'ORDER_CREATION_FAILED',
+        status: 'PAID',
 
         providerPaymentId: body.razorpayPaymentId,
 
         orderCreationFailedAt,
 
+        orderCreationStatus: 'FAILED',
+
         updatedAt: orderCreationFailedAt,
       });
 
-      // --------------------------------------------
-      // INITIATE REFUND
-      // --------------------------------------------
-
       try {
-        this.logger.warn(
-          `Initiating Razorpay refund paymentId=${paymentRef.id} razorpayPaymentId=${body.razorpayPaymentId}`,
+        const refund = await this.razorpayRefundService.refundPayment(
+          paymentRef.id,
+          'ORDER_CREATION_FAILED',
         );
-
-        const refund = await this.razorpay.payments.refund(
-          body.razorpayPaymentId,
-          {
-            amount: payment.amountInPaise,
-
-            notes: {
-              reason: 'ORDER_CREATION_FAILED',
-              paymentId: paymentRef.id,
-            },
-
-            receipt: `refund_${paymentRef.id}`,
-          },
-        );
-
-        const refundCreatedAt = new Date().toISOString();
-
-        await paymentRef.update({
-          status: 'REFUND_PENDING',
-
-          providerRefundId: refund.id,
-
-          refundAmountInPaise: payment.amountInPaise,
-
-          refundCreatedAt,
-
-          updatedAt: refundCreatedAt,
-        });
 
         this.logger.warn(
-          `Razorpay refund initiated paymentId=${paymentRef.id} refundId=${refund.id}`,
+          `Refund requested after order creation failure paymentId=${paymentRef.id} status=${refund.status}`,
         );
+
         throw new BadRequestException(
           'Payment succeeded but order creation failed. Refund has been initiated.',
         );
@@ -527,19 +504,11 @@ export class PaymentsService {
           throw refundError;
         }
 
-        const refundFailedAt = new Date().toISOString();
-
-        await paymentRef.update({
-          status: 'REFUND_FAILED',
-
-          refundFailedAt,
-
-          updatedAt: refundFailedAt,
-        });
-
         this.logger.error(
-          `Razorpay refund failed paymentId=${paymentRef.id} razorpayPaymentId=${body.razorpayPaymentId}`,
-          refundError instanceof Error ? refundError.stack : undefined,
+          `Refund failed after order creation failure paymentId=${paymentRef.id}`,
+          refundError instanceof Error
+            ? refundError.stack
+            : String(refundError),
         );
 
         throw new BadRequestException(
