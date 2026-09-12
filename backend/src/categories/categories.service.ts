@@ -18,6 +18,7 @@ export interface CategoryDocument {
   merchantId: string;
   moduleId: string;
   name: string;
+  imageUrl: string | null;
   sortOrder: number;
   isActive: boolean;
   createdAt: string;
@@ -113,6 +114,7 @@ export class CategoriesService {
       merchantId,
       moduleId: store.moduleId,
       name: data.name.trim(),
+      imageUrl: null,
       sortOrder: data.sortOrder ?? 0,
       isActive: true,
       createdAt: now,
@@ -225,6 +227,203 @@ export class CategoriesService {
       success: true,
       categoryId,
       ...updates,
+    };
+  }
+
+  async updateCategoryImage(
+    merchantId: string,
+    categoryId: string,
+    imageUrl: string,
+  ) {
+    const normalizedImageUrl = imageUrl?.trim();
+
+    if (!normalizedImageUrl) {
+      throw new BadRequestException(
+        'Category image URL is required',
+      );
+    }
+
+    const db = this.firebaseService.getFirestore();
+
+    const categoryRef = db
+      .collection('categories')
+      .doc(categoryId);
+
+    const snapshot = await categoryRef.get();
+
+    if (!snapshot.exists) {
+      throw new NotFoundException('Category not found');
+    }
+
+    const category = snapshot.data() as CategoryDocument;
+
+    if (category.merchantId !== merchantId) {
+      throw new ForbiddenException(
+        'You cannot update this category',
+      );
+    }
+
+    const updatedAt = new Date().toISOString();
+
+    await categoryRef.update({
+      imageUrl: normalizedImageUrl,
+      updatedAt,
+    });
+
+    return {
+      success: true,
+      categoryId,
+      imageUrl: normalizedImageUrl,
+      updatedAt,
+    };
+  }
+
+  async getCategories(
+    moduleId?: string,
+    zoneId?: string,
+  ) {
+    const db = this.firebaseService.getFirestore();
+
+    const normalizedModuleId = moduleId?.trim();
+    const normalizedZoneId = zoneId?.trim();
+
+    if (normalizedModuleId) {
+      const moduleSnapshot = await db
+        .collection('modules')
+        .doc(normalizedModuleId)
+        .get();
+
+      if (!moduleSnapshot.exists) {
+        return {
+          success: true,
+          categories: [],
+        };
+      }
+
+      const moduleData = moduleSnapshot.data() as {
+        isActive?: boolean;
+      };
+
+      if (moduleData.isActive !== true) {
+        return {
+          success: true,
+          categories: [],
+        };
+      }
+    }
+
+    const storesSnapshot = await db
+      .collection('stores')
+      .where('isActive', '==', true)
+      .get();
+
+    const eligibleStoreIds = new Set(
+      storesSnapshot.docs
+        .map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }))
+        .filter((store: any) => {
+          if (
+            normalizedModuleId &&
+            store.moduleId !== normalizedModuleId
+          ) {
+            return false;
+          }
+
+          if (
+            normalizedZoneId &&
+            store.zoneId !== normalizedZoneId
+          ) {
+            return false;
+          }
+
+          return true;
+        })
+        .map((store) => store.id),
+    );
+
+    if (eligibleStoreIds.size === 0) {
+      return {
+        success: true,
+        categories: [],
+      };
+    }
+
+    const categoriesSnapshot = await db
+      .collection('categories')
+      .where('isActive', '==', true)
+      .get();
+
+    const categories = categoriesSnapshot.docs
+      .map(
+        (doc) =>
+          ({
+            id: doc.id,
+            ...doc.data(),
+          }) as CategoryDocument,
+      )
+      .filter((category) =>
+        eligibleStoreIds.has(category.storeId),
+      );
+
+    /*
+     * Categories currently belong to stores.
+     *
+     * For Home discovery, multiple stores may
+     * contain categories with the same name.
+     * Deduplicate them by normalized name.
+     */
+    const uniqueCategories = new Map<
+      string,
+      {
+        name: string;
+        moduleId: string;
+        imageUrl: string | null;
+        sortOrder: number;
+        storeCount: number;
+      }
+    >();
+
+    for (const category of categories) {
+      const key = category.name.trim().toLowerCase();
+
+      const existing = uniqueCategories.get(key);
+
+      if (existing) {
+        existing.storeCount += 1;
+        existing.sortOrder = Math.min(
+          existing.sortOrder,
+          category.sortOrder,
+        );
+
+        if (!existing.imageUrl && category.imageUrl) {
+          existing.imageUrl = category.imageUrl;
+        }
+
+        continue;
+      }
+
+      uniqueCategories.set(key, {
+        name: category.name,
+        moduleId: category.moduleId,
+        imageUrl: category.imageUrl ?? null,
+        sortOrder: category.sortOrder,
+        storeCount: 1,
+      });
+    }
+
+    const result = Array.from(uniqueCategories.values());
+
+    result.sort(
+      (a, b) =>
+        a.sortOrder - b.sortOrder ||
+        a.name.localeCompare(b.name),
+    );
+
+    return {
+      success: true,
+      categories: result,
     };
   }
 

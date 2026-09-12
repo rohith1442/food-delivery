@@ -3,25 +3,18 @@ import 'package:dio/dio.dart';
 import '../../core/network/api_client.dart';
 
 class StoreApiService {
-  StoreApiService({
-    ApiClient? apiClient,
-  }) : _apiClient = apiClient ?? ApiClient();
+  StoreApiService({ApiClient? apiClient})
+    : _apiClient = apiClient ?? ApiClient();
 
   final ApiClient _apiClient;
 
   Future<Map<String, dynamic>?> getStore() async {
     try {
-      final response = await _apiClient.get(
-        '/merchant/store',
-      );
+      final response = await _apiClient.get('/merchant/store');
 
-      final data = Map<String, dynamic>.from(
-        response.data as Map,
-      );
+      final data = Map<String, dynamic>.from(response.data as Map);
 
-      return Map<String, dynamic>.from(
-        data['store'] as Map,
-      );
+      return Map<String, dynamic>.from(data['store'] as Map);
     } on DioException catch (error) {
       if (error.response?.statusCode == 404) {
         return null;
@@ -49,13 +42,9 @@ class StoreApiService {
       },
     );
 
-    final data = Map<String, dynamic>.from(
-      response.data as Map,
-    );
+    final data = Map<String, dynamic>.from(response.data as Map);
 
-    return Map<String, dynamic>.from(
-      data['store'] as Map,
-    );
+    return Map<String, dynamic>.from(data['store'] as Map);
   }
 
   Future<void> updateStoreStatus({
@@ -64,9 +53,31 @@ class StoreApiService {
   }) async {
     await _apiClient.patch(
       '/merchant/store/$storeId/status',
-      data: {
-        'isOpen': isOpen,
-      },
+      data: {'isOpen': isOpen},
+    );
+  }
+
+  Future<String> uploadStoreImage({required String filePath}) async {
+    final response = await _apiClient.uploadFile(
+      '/merchant/store/image',
+      filePath: filePath,
+    );
+
+    final data = Map<String, dynamic>.from(response.data as Map);
+
+    final imageUrl = data['imageUrl']?.toString();
+
+    if (imageUrl == null || imageUrl.isEmpty) {
+      throw Exception('Store image upload failed');
+    }
+
+    return imageUrl;
+  }
+
+  Future<void> updateStoreImage({required String imageUrl}) async {
+    await _apiClient.patch(
+      '/merchant/store/image',
+      data: {'imageUrl': imageUrl},
     );
   }
 }

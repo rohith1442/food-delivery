@@ -17,6 +17,28 @@ export class UploadsService {
     merchantId: string,
     file: Express.Multer.File,
   ) {
+    return this.uploadImage(merchantId, file, 'products');
+  }
+
+  async uploadStoreImage(
+    merchantId: string,
+    file: Express.Multer.File,
+  ) {
+    return this.uploadImage(merchantId, file, 'stores');
+  }
+
+  async uploadCategoryImage(
+    merchantId: string,
+    file: Express.Multer.File,
+  ) {
+    return this.uploadImage(merchantId, file, 'categories');
+  }
+
+  private async uploadImage(
+    merchantId: string,
+    file: Express.Multer.File,
+    folder: 'products' | 'stores' | 'categories',
+  ) {
     if (!file) {
       throw new BadRequestException(
         'Image file is required',
@@ -43,7 +65,7 @@ export class UploadsService {
           : 'jpg';
 
     const fileName =
-      `products/${merchantId}/${randomUUID()}.${extension}`;
+      `${folder}/${merchantId}/${randomUUID()}.${extension}`;
 
     const bucket =
       this.firebaseService

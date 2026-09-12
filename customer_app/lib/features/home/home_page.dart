@@ -1,10 +1,20 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../../core/config/app_branding.dart';
 import '../location/addresses_api_service.dart';
-import '../orders/orders_page.dart';
-import '../restaurants/restaurants_page.dart';
 import '../location/saved_addresses_page.dart';
+import '../orders/orders_page.dart';
+import '../restaurants/menu_page.dart';
+import '../restaurants/restaurants_page.dart';
+import '../restaurants/stores_api_service.dart';
+import 'widgets/home_header.dart';
+import 'widgets/home_category_item.dart';
+import 'widgets/home_search_bar.dart';
+import 'widgets/module_card.dart';
+import 'widgets/promo_banner.dart';
+import 'widgets/section_header.dart';
+import 'widgets/store_card.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -14,19 +24,39 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  final AddressesApiService _addressesApiService = AddressesApiService();
+
+  final StoresApiService _storesApiService = StoresApiService();
+
+  final TextEditingController _searchController = TextEditingController();
+
   int selectedIndex = 0;
 
-  String _selectedAddress = 'Home';
+  String _selectedAddress = 'Select location';
   String? _selectedZoneId;
 
   bool _isLoadingAddress = true;
-  final bool _isSavingAddress = false;
-  final AddressesApiService _addressesApiService = AddressesApiService();
+  bool _isLoadingStores = false;
+
+  String? _storesError;
+
+  List<Map<String, dynamic>> _foodStores = [];
+  List<Map<String, dynamic>> _groceryStores = [];
+  List<Map<String, dynamic>> _foodCategories = [];
+  List<Map<String, dynamic>> _groceryCategories = [];
+
+  String _searchQuery = '';
 
   @override
   void initState() {
     super.initState();
     _loadSavedAddress();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadSavedAddress() async {
@@ -55,15 +85,13 @@ class _HomePageState extends State<HomePage> {
 
       setState(() {
         _selectedAddress = selectedAddress.address;
+
         _selectedZoneId = selectedAddress.zoneId;
+
         _isLoadingAddress = false;
       });
 
-      debugPrint(
-        'Loaded saved address: '
-        '${selectedAddress.address}, '
-        'zone=${selectedAddress.zoneId}',
-      );
+      await _loadStores();
     } catch (error, stackTrace) {
       debugPrint('Failed to load saved address: $error');
 
@@ -79,15 +107,72 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  Future<void> _logout() async {
-    await FirebaseAuth.instance.signOut();
-  }
+  Future<void> _loadStores() async {
+    final zoneId = _selectedZoneId;
 
-  Future<void> _chooseLocation() async {
-    if (_isSavingAddress) {
+    if (zoneId == null || zoneId.isEmpty) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _foodStores = [];
+        _groceryStores = [];
+        _foodCategories = [];
+        _groceryCategories = [];
+      });
+
       return;
     }
 
+    setState(() {
+      _isLoadingStores = true;
+      _storesError = null;
+    });
+
+    try {
+      final results = await Future.wait([
+        _storesApiService.getStores(moduleId: 'food', zoneId: zoneId),
+        _storesApiService.getStores(moduleId: 'grocery', zoneId: zoneId),
+        _storesApiService.getHomeCategories(moduleId: 'food', zoneId: zoneId),
+        _storesApiService.getHomeCategories(
+          moduleId: 'grocery',
+          zoneId: zoneId,
+        ),
+      ]);
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _foodStores = results[0];
+        _groceryStores = results[1];
+        _foodCategories = results[2];
+        _groceryCategories = results[3];
+        _isLoadingStores = false;
+      });
+    } catch (error, stackTrace) {
+      debugPrint('Failed to load home stores: $error');
+
+      debugPrintStack(stackTrace: stackTrace);
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _foodStores = [];
+        _groceryStores = [];
+        _foodCategories = [];
+        _groceryCategories = [];
+        _storesError = 'Unable to load nearby stores.';
+        _isLoadingStores = false;
+      });
+    }
+  }
+
+  Future<void> _chooseLocation() async {
     final selectedAddress = await Navigator.of(context).push<CustomerAddress>(
       MaterialPageRoute(builder: (_) => const SavedAddressesPage()),
     );
@@ -96,19 +181,24 @@ class _HomePageState extends State<HomePage> {
       return;
     }
 
+    final zoneChanged = _selectedZoneId != selectedAddress.zoneId;
+
     setState(() {
       _selectedAddress = selectedAddress.address;
+
       _selectedZoneId = selectedAddress.zoneId;
     });
 
-    debugPrint(
-      'Selected saved address: '
-      '${selectedAddress.address}, '
-      'zone=${selectedAddress.zoneId}',
-    );
+    if (zoneChanged) {
+      await _loadStores();
+    }
   }
 
-  void _openRestaurants({String moduleId = 'food'}) {
+  Future<void> _logout() async {
+    await FirebaseAuth.instance.signOut();
+  }
+
+  void _openRestaurants({String moduleId = 'food', String? category}) {
     final zoneId = _selectedZoneId;
 
     if (_isLoadingAddress) {
@@ -125,12 +215,64 @@ class _HomePageState extends State<HomePage> {
 
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => RestaurantsPage(zoneId: zoneId, moduleId: moduleId),
+        builder: (_) => RestaurantsPage(
+          zoneId: zoneId,
+          moduleId: moduleId,
+          category: category,
+        ),
       ),
     );
   }
 
+  void _openStore(Map<String, dynamic> store) {
+    final storeId = store['id']?.toString() ?? '';
+
+    final storeName = store['name']?.toString() ?? 'Store';
+
+    final storeAddress = store['address']?.toString() ?? '';
+
+    final isOpen = store['isOpen'] == true;
+
+    if (!isOpen || storeId.isEmpty) {
+      return;
+    }
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => MenuPage(
+          storeId: storeId,
+          storeName: storeName,
+          storeAddress: storeAddress,
+        ),
+      ),
+    );
+  }
+
+  void _onSearchChanged(String value) {
+    setState(() {
+      _searchQuery = value.trim().toLowerCase();
+    });
+  }
+
   void _onNavigationTap(int index) {
+    if (index == 0) {
+      setState(() {
+        selectedIndex = 0;
+      });
+
+      return;
+    }
+
+    if (index == 1) {
+      setState(() {
+        selectedIndex = 1;
+      });
+
+      FocusScope.of(context).requestFocus(FocusNode());
+
+      return;
+    }
+
     if (index == 2) {
       Navigator.of(context)
           .push(MaterialPageRoute(builder: (_) => const OrdersPage()));
@@ -138,9 +280,47 @@ class _HomePageState extends State<HomePage> {
       return;
     }
 
-    setState(() {
-      selectedIndex = index;
-    });
+    if (index == 3) {
+      _showMessage('Profile coming soon.');
+    }
+  }
+
+  List<Map<String, dynamic>> get _allStores {
+    final stores = [..._foodStores, ..._groceryStores];
+
+    final unique = <String, Map<String, dynamic>>{};
+
+    for (final store in stores) {
+      final id = store['id']?.toString();
+
+      if (id == null || id.isEmpty) {
+        continue;
+      }
+
+      unique[id] = store;
+    }
+
+    return unique.values.toList();
+  }
+
+  List<Map<String, dynamic>> get _homeCategories {
+    return [..._foodCategories, ..._groceryCategories];
+  }
+
+  List<Map<String, dynamic>> get _filteredStores {
+    final stores = _allStores;
+
+    if (_searchQuery.isEmpty) {
+      return stores;
+    }
+
+    return stores.where((store) {
+      final name = store['name']?.toString().toLowerCase() ?? '';
+
+      final address = store['address']?.toString().toLowerCase() ?? '';
+
+      return name.contains(_searchQuery) || address.contains(_searchQuery);
+    }).toList();
   }
 
   void _showMessage(String message) {
@@ -154,203 +334,222 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
+    final branding = AppBrandingController.instance.branding;
+
+    final stores = _filteredStores;
+
     return Scaffold(
       body: SafeArea(
-        child: CustomScrollView(
-          slivers: [
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: InkWell(
-                            onTap: _chooseLocation,
-                            borderRadius: BorderRadius.circular(8),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 4),
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    Icons.location_on,
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .primary,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        const Text(
-                                          'Deliver to',
-                                          style: TextStyle(fontSize: 12),
-                                        ),
-                                        const SizedBox(height: 2),
-                                        Row(
-                                          children: [
-                                            Expanded(
-                                              child: Text(
-                                                _isLoadingAddress
-                                                    ? 'Loading location...'
-                                                    : _selectedAddress,
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
-                                                style: const TextStyle(
-                                                  fontSize: 16,
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                              ),
-                                            ),
-                                            const SizedBox(width: 4),
-                                            const Icon(
-                                              Icons.keyboard_arrow_down,
-                                              size: 20,
-                                            ),
-                                          ],
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-
-                        // Notifications
-                        IconButton(
-                          onPressed: () {},
-                          icon: const Icon(Icons.notifications_outlined),
-                        ),
-
-                        // Logout
-                        IconButton(
-                          tooltip: 'Logout',
-                          onPressed: _logout,
-                          icon: const Icon(Icons.logout),
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    TextField(
-                      decoration: InputDecoration(
-                        hintText: 'Search food, groceries and more',
-                        prefixIcon: const Icon(Icons.search),
-                        suffixIcon: IconButton(
-                          onPressed: () {},
-                          icon: const Icon(Icons.tune),
-                        ),
+        child: RefreshIndicator(
+          onRefresh: _loadSavedAddress,
+          child: CustomScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            slivers: [
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      HomeHeader(
+                        address: _selectedAddress,
+                        loadingAddress: _isLoadingAddress,
+                        onLocationTap: _chooseLocation,
+                        onNotificationTap: () {
+                          _showMessage('No new notifications.');
+                        },
+                        onLogoutTap: _logout,
                       ),
-                    ),
 
-                    const SizedBox(height: 20),
+                      const SizedBox(height: 22),
 
-                    Row(
-                      children: [
-                        Expanded(
-                          child: GestureDetector(
-                            onTap: () {
-                              _openRestaurants(moduleId: 'food');
-                            },
-                            child: const _ServiceCard(
-                              icon: Icons.restaurant,
+                      Text(
+                        branding.appName,
+                        style: Theme.of(context).textTheme.headlineSmall
+                            ?.copyWith(fontWeight: FontWeight.bold),
+                      ),
+
+                      const SizedBox(height: 4),
+
+                      Text(
+                        branding.tagline,
+                        style: TextStyle(color: Colors.grey[700]),
+                      ),
+
+                      const SizedBox(height: 20),
+
+                      HomeSearchBar(
+                        controller: _searchController,
+                        onChanged: _onSearchChanged,
+                      ),
+
+                      const SizedBox(height: 22),
+
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ModuleCard(
                               title: 'Food',
                               subtitle: 'Restaurants & meals',
-                              selected: true,
+                              icon: Icons.restaurant,
+                              highlighted: true,
+                              onTap: () {
+                                _openRestaurants(moduleId: 'food');
+                              },
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: GestureDetector(
-                            onTap: () {
-                              _openRestaurants(moduleId: 'grocery');
-                            },
-                            child: const _ServiceCard(
-                              icon: Icons.shopping_basket,
+
+                          const SizedBox(width: 12),
+
+                          Expanded(
+                            child: ModuleCard(
                               title: 'Grocery',
                               subtitle: 'Daily essentials',
-                              selected: false,
+                              icon: Icons.shopping_basket,
+                              highlighted: false,
+                              onTap: () {
+                                _openRestaurants(moduleId: 'grocery');
+                              },
                             ),
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 22),
+
+                      const PromoBanner(),
+
+                      if (_searchQuery.isEmpty &&
+                          _homeCategories.isNotEmpty) ...[
+                        const SizedBox(height: 28),
+
+                        const SectionHeader(title: 'Categories'),
+
+                        const SizedBox(height: 14),
+
+                        SizedBox(
+                          height: 112,
+                          child: ListView.separated(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: _homeCategories.length,
+                            separatorBuilder: (_, _) =>
+                                const SizedBox(width: 6),
+                            itemBuilder: (context, index) {
+                              final category = _homeCategories[index];
+                              final moduleId =
+                                  category['moduleId']?.toString() ?? 'food';
+
+                              return HomeCategoryItem(
+                                category: category,
+                                onTap: () {
+                                  final name =
+                                      category['name']?.toString() ?? '';
+
+                                  _openRestaurants(
+                                    moduleId: moduleId,
+                                    category: name,
+                                  );
+                                },
+                              );
+                            },
                           ),
                         ),
                       ],
-                    ),
 
-                    const SizedBox(height: 28),
+                      const SizedBox(height: 28),
 
-                    const _SectionHeader(
-                      title: 'Categories',
-                      actionText: 'See all',
-                    ),
+                      SectionHeader(
+                        title: _searchQuery.isEmpty
+                            ? 'Nearby Stores'
+                            : 'Search Results',
+                        actionText: _searchQuery.isEmpty ? 'See all' : null,
+                        onAction: _searchQuery.isEmpty
+                            ? () {
+                                _openRestaurants();
+                              }
+                            : null,
+                      ),
 
-                    const SizedBox(height: 14),
-                  ],
+                      const SizedBox(height: 12),
+                    ],
+                  ),
                 ),
               ),
-            ),
 
-            SliverToBoxAdapter(
-              child: SizedBox(
-                height: 105,
-                child: ListView(
+              if (_isLoadingStores)
+                const SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.all(40),
+                    child: Center(child: CircularProgressIndicator()),
+                  ),
+                )
+              else if (_storesError != null)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      children: [
+                        const Icon(Icons.cloud_off_outlined, size: 48),
+                        const SizedBox(height: 12),
+                        Text(_storesError!, textAlign: TextAlign.center),
+                        const SizedBox(height: 14),
+                        FilledButton(
+                          onPressed: _loadStores,
+                          child: const Text('Retry'),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              else if (_selectedZoneId == null)
+                SliverToBoxAdapter(
+                  child: _EmptyState(
+                    icon: Icons.location_on_outlined,
+                    title: 'Choose your delivery location',
+                    message:
+                        'Select an address to see stores available near you.',
+                    buttonText: 'Select location',
+                    onPressed: _chooseLocation,
+                  ),
+                )
+              else if (stores.isEmpty)
+                SliverToBoxAdapter(
+                  child: _EmptyState(
+                    icon: _searchQuery.isEmpty
+                        ? Icons.storefront_outlined
+                        : Icons.search_off,
+                    title: _searchQuery.isEmpty
+                        ? 'No stores available'
+                        : 'No results found',
+                    message: _searchQuery.isEmpty
+                        ? 'There are currently no stores available in your area.'
+                        : 'Try searching with a different store name.',
+                  ),
+                )
+              else
+                SliverPadding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
-                  scrollDirection: Axis.horizontal,
-                  children: const [
-                    _CategoryItem(icon: Icons.local_pizza, name: 'Pizza'),
-                    _CategoryItem(icon: Icons.lunch_dining, name: 'Burgers'),
-                    _CategoryItem(icon: Icons.ramen_dining, name: 'Asian'),
-                    _CategoryItem(icon: Icons.local_cafe, name: 'Cafe'),
-                    _CategoryItem(icon: Icons.icecream, name: 'Desserts'),
-                    _CategoryItem(icon: Icons.eco, name: 'Healthy'),
-                  ],
+                  sliver: SliverList(
+                    delegate: SliverChildBuilderDelegate((context, index) {
+                      final store = stores[index];
+
+                      return StoreCard(
+                        store: store,
+                        currencySymbol: branding.currencySymbol,
+                        onTap: () {
+                          _openStore(store);
+                        },
+                      );
+                    }, childCount: stores.length),
+                  ),
                 ),
-              ),
-            ),
 
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 24, 20, 12),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Nearby Restaurants',
-                      style: Theme.of(context).textTheme.titleLarge
-                          ?.copyWith(fontWeight: FontWeight.bold),
-                    ),
-                    TextButton(
-                      onPressed: () {
-                        _openRestaurants();
-                      },
-                      child: const Text('See all'),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            SliverList(
-              delegate: SliverChildBuilderDelegate((context, index) {
-                return _RestaurantCard(
-                  onTap: () {
-                    _openRestaurants();
-                  },
-                );
-              }, childCount: 3),
-            ),
-
-            const SliverToBoxAdapter(child: SizedBox(height: 100)),
-          ],
+              const SliverToBoxAdapter(child: SizedBox(height: 110)),
+            ],
+          ),
         ),
       ),
+
       bottomNavigationBar: NavigationBar(
         selectedIndex: selectedIndex,
         onDestinationSelected: _onNavigationTap,
@@ -375,186 +574,45 @@ class _HomePageState extends State<HomePage> {
   }
 }
 
-class _ServiceCard extends StatelessWidget {
-  const _ServiceCard({
+class _EmptyState extends StatelessWidget {
+  const _EmptyState({
     required this.icon,
     required this.title,
-    required this.subtitle,
-    required this.selected,
+    required this.message,
+    this.buttonText,
+    this.onPressed,
   });
 
   final IconData icon;
   final String title;
-  final String subtitle;
-  final bool selected;
+  final String message;
+  final String? buttonText;
+  final VoidCallback? onPressed;
 
   @override
   Widget build(BuildContext context) {
-    final color = Theme.of(context).colorScheme.primary;
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: selected ? color : color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(32, 45, 32, 30),
+      child: Column(
         children: [
-          Icon(icon, color: selected ? Colors.white : color),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: selected ? Colors.white : null,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: selected
-                        ? Colors.white.withValues(alpha: 0.85)
-                        : null,
-                  ),
-                ),
-              ],
-            ),
+          Icon(icon, size: 56, color: Colors.grey[500]),
+          const SizedBox(height: 16),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
-        ],
-      ),
-    );
-  }
-}
-
-class _CategoryItem extends StatelessWidget {
-  const _CategoryItem({required this.icon, required this.name});
-
-  final IconData icon;
-  final String name;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = Theme.of(context).colorScheme.primary;
-
-    return SizedBox(
-      width: 72,
-      child: Padding(
-        padding: const EdgeInsets.only(right: 8),
-        child: Column(
-          children: [
-            Container(
-              width: 64,
-              height: 64,
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.08),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, color: color, size: 30),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              name,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 12),
-            ),
+          const SizedBox(height: 8),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: TextStyle(color: Colors.grey[700]),
+          ),
+          if (buttonText != null && onPressed != null) ...[
+            const SizedBox(height: 18),
+            FilledButton(onPressed: onPressed, child: Text(buttonText!)),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({required this.title, required this.actionText});
-
-  final String title;
-  final String actionText;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          title,
-          style: Theme.of(context).textTheme.titleLarge
-              ?.copyWith(fontWeight: FontWeight.bold),
-        ),
-        TextButton(onPressed: () {}, child: Text(actionText)),
-      ],
-    );
-  }
-}
-
-class _RestaurantCard extends StatelessWidget {
-  const _RestaurantCard({required this.onTap});
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final primaryColor = Theme.of(context).colorScheme.primary;
-
-    final containerColor = Theme.of(context).colorScheme.primaryContainer;
-
-    return Card(
-      margin: const EdgeInsets.fromLTRB(20, 6, 20, 12),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: SizedBox(
-          height: 110,
-          child: Row(
-            children: [
-              Container(
-                width: 110,
-                height: double.infinity,
-                color: containerColor,
-                child: Icon(Icons.restaurant, size: 42, color: primaryColor),
-              ),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Text(
-                        'Restaurant Name',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 5),
-                      const Text(
-                        'Indian • Biryani • North Indian',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 5),
-                      Row(
-                        children: [
-                          Icon(Icons.star, size: 16, color: primaryColor),
-                          const SizedBox(width: 4),
-                          const Text('4.5'),
-                          const SizedBox(width: 12),
-                          const Text('25-35 min'),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
+        ],
       ),
     );
   }

@@ -2,13 +2,14 @@ import '../../core/network/api_client.dart';
 
 class StoresApiService {
   StoresApiService({ApiClient? apiClient})
-      : _apiClient = apiClient ?? ApiClient();
+    : _apiClient = apiClient ?? ApiClient();
 
   final ApiClient _apiClient;
 
   Future<List<Map<String, dynamic>>> getStores({
     String? moduleId,
     String? zoneId,
+    String? category,
   }) async {
     final query = <String, dynamic>{};
 
@@ -20,38 +21,40 @@ class StoresApiService {
       query['zoneId'] = zoneId;
     }
 
-    final response = await _apiClient.get(
-      '/stores',
-      queryParameters: query,
-    );
+    if (category != null && category.isNotEmpty) {
+      query['category'] = category;
+    }
 
-    return _extractList(
-      response.data,
-      key: 'stores',
-    );
+    final response = await _apiClient.get('/stores', queryParameters: query);
+
+    return _extractList(response.data, key: 'stores');
   }
 
-  Future<List<Map<String, dynamic>>> getCategories(
-      String storeId,
-      ) async {
+  Future<List<Map<String, dynamic>>> getHomeCategories({
+    required String moduleId,
+    required String zoneId,
+  }) async {
     final response = await _apiClient.get(
-      '/stores/$storeId/categories',
+      '/categories',
+      queryParameters: {'moduleId': moduleId, 'zoneId': zoneId},
     );
 
-    return _extractList(
-      response.data,
-      key: 'categories',
-    );
+    return _extractList(response.data, key: 'categories');
+  }
+
+  Future<List<Map<String, dynamic>>> getCategories(String storeId) async {
+    final response = await _apiClient.get('/stores/$storeId/categories');
+
+    return _extractList(response.data, key: 'categories');
   }
 
   Future<List<Map<String, dynamic>>> getProducts(
-      String storeId, {
-        String? categoryId,
-      }) async {
+    String storeId, {
+    String? categoryId,
+  }) async {
     final query = <String, dynamic>{};
 
-    if (categoryId != null &&
-        categoryId.isNotEmpty) {
+    if (categoryId != null && categoryId.isNotEmpty) {
       query['categoryId'] = categoryId;
     }
 
@@ -60,16 +63,13 @@ class StoresApiService {
       queryParameters: query,
     );
 
-    return _extractList(
-      response.data,
-      key: 'products',
-    );
+    return _extractList(response.data, key: 'products');
   }
 
   List<Map<String, dynamic>> _extractList(
-      dynamic responseData, {
-        required String key,
-      }) {
+    dynamic responseData, {
+    required String key,
+  }) {
     dynamic rawList;
 
     // Backend directly returns:
@@ -80,7 +80,6 @@ class StoresApiService {
     if (responseData is List) {
       rawList = responseData;
     }
-
     // Backend returns:
     // {
     //   "stores": [...]
@@ -94,18 +93,12 @@ class StoresApiService {
     }
 
     if (rawList is! List) {
-      throw FormatException(
-        'Invalid API response: "$key" must be a list.',
-      );
+      throw FormatException('Invalid API response: "$key" must be a list.');
     }
 
     return rawList
         .whereType<Map>()
-        .map(
-          (item) => Map<String, dynamic>.from(
-        item,
-      ),
-    )
+        .map((item) => Map<String, dynamic>.from(item))
         .toList();
   }
 }

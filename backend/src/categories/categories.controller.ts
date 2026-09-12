@@ -6,6 +6,7 @@ import {
   Patch,
   Post,
   Req,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 
@@ -62,7 +63,34 @@ async updateCategory(
   );
 }
 
+@Patch('merchant/categories/:categoryId/image')
+@UseGuards(AuthGuard, RolesGuard)
+@Roles('MERCHANT')
+async updateCategoryImage(
+  @Req() request: any,
+  @Param('categoryId') categoryId: string,
+  @Body() body: { imageUrl: string },
+) {
+  return this.categoriesService.updateCategoryImage(
+    request.user.uid,
+    categoryId,
+    body.imageUrl,
+  );
+}
+
   // CUSTOMER
+
+  @Get('categories')
+  @UseGuards(AuthGuard)
+  async getCategories(
+    @Query('moduleId') moduleId?: string,
+    @Query('zoneId') zoneId?: string,
+  ) {
+    return this.categoriesService.getCategories(
+      moduleId,
+      zoneId,
+    );
+  }
 
 @Get('stores/:storeId/categories')
 @UseGuards(AuthGuard)

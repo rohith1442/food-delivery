@@ -43,4 +43,46 @@ export class UploadsController {
         file,
       );
   }
+
+  @Post('merchant/store/image')
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles('MERCHANT')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: {
+        fileSize: 5 * 1024 * 1024,
+      },
+    }),
+  )
+  async uploadStoreImage(
+    @Req() request: any,
+    @UploadedFile()
+    file: Express.Multer.File,
+  ) {
+    return this.uploadsService.uploadStoreImage(
+      request.user.uid,
+      file,
+    );
+  }
+
+  @Post('merchant/categories/images')
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles('MERCHANT')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: {
+        fileSize: 5 * 1024 * 1024,
+      },
+    }),
+  )
+  async uploadCategoryImage(
+    @Req() request: any,
+    @UploadedFile()
+    file: Express.Multer.File,
+  ) {
+    return this.uploadsService.uploadCategoryImage(
+      request.user.uid,
+      file,
+    );
+  }
 }

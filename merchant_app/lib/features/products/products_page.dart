@@ -14,6 +14,7 @@ class ProductsPage extends StatefulWidget {
 
 class _ProductsPageState extends State<ProductsPage> {
   final ProductsApiService _apiService = ProductsApiService();
+  final ImagePicker _imagePicker = ImagePicker();
 
   List<Map<String, dynamic>> _products = [];
   List<Map<String, dynamic>> _categories = [];
@@ -21,6 +22,7 @@ class _ProductsPageState extends State<ProductsPage> {
   bool _isLoading = true;
   String? _error;
   String? _updatingProductId;
+  String? _updatingCategoryId;
 
   @override
   void initState() {
@@ -176,6 +178,62 @@ class _ProductsPageState extends State<ProductsPage> {
 
     if (result == true) {
       await _loadData();
+    }
+  }
+
+  Future<void> _changeCategoryImage(Map<String, dynamic> category) async {
+    final categoryId = category['id']?.toString();
+
+    if (categoryId == null || categoryId.isEmpty) {
+      return;
+    }
+
+    final pickedFile = await _imagePicker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 85,
+    );
+
+    if (pickedFile == null) {
+      return;
+    }
+
+    try {
+      setState(() {
+        _updatingCategoryId = categoryId;
+      });
+
+      final imageUrl = await _apiService.uploadCategoryImage(
+        filePath: pickedFile.path,
+      );
+
+      await _apiService.updateCategoryImage(
+        categoryId: categoryId,
+        imageUrl: imageUrl,
+      );
+
+      await _loadData();
+
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Category image updated')));
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to update image: $error')));
+    } finally {
+      if (mounted) {
+        setState(() {
+          _updatingCategoryId = null;
+        });
+      }
     }
   }
 
@@ -363,7 +421,7 @@ class _ProductsPageState extends State<ProductsPage> {
       );
     }
 
-    if (_products.isEmpty) {
+    if (_products.isEmpty && _categories.isEmpty) {
       return ListView(
         padding: const EdgeInsets.all(24),
         children: [
@@ -399,9 +457,13 @@ class _ProductsPageState extends State<ProductsPage> {
 
     return ListView.builder(
       padding: const EdgeInsets.all(16),
-      itemCount: _products.length,
+      itemCount: _products.length + 1,
       itemBuilder: (context, index) {
-        final product = _products[index];
+        if (index == 0) {
+          return _buildCategoriesSection();
+        }
+
+        final product = _products[index - 1];
 
         final productId = product['id']?.toString() ?? '';
 
@@ -509,6 +571,122 @@ class _ProductsPageState extends State<ProductsPage> {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildCategoriesSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.only(bottom: 12),
+          child: Text(
+            'Categories',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          ),
+        ),
+        SizedBox(
+          height: 132,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: _categories.length,
+            separatorBuilder: (_, _) => const SizedBox(width: 12),
+            itemBuilder: (context, index) {
+              final category = _categories[index];
+              final categoryId = category['id']?.toString();
+              final imageUrl = category['imageUrl']?.toString();
+              final isUpdating = _updatingCategoryId == categoryId;
+
+              return SizedBox(
+                width: 150,
+                child: Card(
+                  clipBehavior: Clip.antiAlias,
+                  child: Padding(
+                    padding: const EdgeInsets.all(10),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        GestureDetector(
+                          onTap: isUpdating
+                              ? null
+                              : () => _changeCategoryImage(category),
+                          child: Stack(
+                            children: [
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(12),
+                                child: SizedBox(
+                                  width: 72,
+                                  height: 72,
+                                  child: imageUrl != null && imageUrl.isNotEmpty
+                                      ? Image.network(
+                                          imageUrl,
+                                          fit: BoxFit.cover,
+                                          errorBuilder:
+                                              (context, error, stackTrace) {
+                                                return Container(
+                                                  color: Theme.of(context)
+                                                      .colorScheme
+                                                      .surfaceContainerHighest,
+                                                  child: const Icon(
+                                                    Icons.category_outlined,
+                                                  ),
+                                                );
+                                              },
+                                        )
+                                      : Container(
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .surfaceContainerHighest,
+                                          child: const Icon(
+                                            Icons.add_a_photo_outlined,
+                                          ),
+                                        ),
+                                ),
+                              ),
+                              if (isUpdating)
+                                Positioned.fill(
+                                  child: Container(
+                                    alignment: Alignment.center,
+                                    color: Colors.black38,
+                                    child: const SizedBox(
+                                      width: 22,
+                                      height: 22,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          category['name']?.toString() ?? 'Category',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+        if (_products.isEmpty)
+          const Padding(
+            padding: EdgeInsets.only(top: 28),
+            child: Center(
+              child: Text(
+                'Add your first product to start building your menu.',
+              ),
+            ),
+          )
+        else
+          const SizedBox(height: 12),
+      ],
     );
   }
 }

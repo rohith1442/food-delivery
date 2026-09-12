@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/config/app_branding.dart';
 import 'menu_page.dart';
 import 'stores_api_service.dart';
 
@@ -8,10 +9,12 @@ class RestaurantsPage extends StatefulWidget {
     super.key,
     required this.zoneId,
     this.moduleId = 'food',
+    this.category,
   });
 
   final String zoneId;
   final String moduleId;
+  final String? category;
 
   @override
   State<RestaurantsPage> createState() => _RestaurantsPageState();
@@ -42,6 +45,7 @@ class _RestaurantsPageState extends State<RestaurantsPage> {
       final stores = await _apiService.getStores(
         moduleId: widget.moduleId,
         zoneId: widget.zoneId,
+        category: widget.category,
       );
 
       if (!mounted) {
@@ -74,7 +78,11 @@ class _RestaurantsPageState extends State<RestaurantsPage> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          widget.moduleId == 'grocery' ? 'Grocery Stores' : 'Restaurants',
+          widget.category?.isNotEmpty == true
+              ? '${widget.category} near you'
+              : widget.moduleId == 'grocery'
+              ? 'Grocery Stores'
+              : 'Restaurants',
         ),
       ),
       body: RefreshIndicator(onRefresh: _loadStores, child: _buildBody()),
@@ -138,9 +146,14 @@ class _RestaurantsPageState extends State<RestaurantsPage> {
 
         final address = store['address']?.toString() ?? '';
 
+        final imageUrl = store['imageUrl']?.toString();
+
         final minimumOrder = _toNumber(store['minimumOrder']);
 
         final isOpen = store['isOpen'] == true;
+
+        final currencySymbol =
+            AppBrandingController.instance.branding.currencySymbol;
 
         return Card(
           margin: const EdgeInsets.only(bottom: 16),
@@ -163,19 +176,30 @@ class _RestaurantsPageState extends State<RestaurantsPage> {
               padding: const EdgeInsets.all(12),
               child: Row(
                 children: [
-                  Container(
-                    width: 100,
-                    height: 100,
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.primaryContainer,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(
-                      widget.moduleId == 'grocery'
-                          ? Icons.shopping_basket
-                          : Icons.restaurant,
-                      size: 40,
-                      color: Theme.of(context).colorScheme.primary,
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: SizedBox(
+                      width: 64,
+                      height: 64,
+                      child: imageUrl != null && imageUrl.isNotEmpty
+                          ? Image.network(
+                              imageUrl,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) {
+                                return Container(
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .surfaceContainerHighest,
+                                  child: const Icon(Icons.storefront_outlined),
+                                );
+                              },
+                            )
+                          : Container(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .surfaceContainerHighest,
+                              child: const Icon(Icons.storefront_outlined),
+                            ),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -219,7 +243,7 @@ class _RestaurantsPageState extends State<RestaurantsPage> {
                         if (minimumOrder > 0) ...[
                           const SizedBox(height: 5),
                           Text(
-                            'Minimum order ₹${_formatAmount(minimumOrder)}',
+                            'Minimum order $currencySymbol${_formatAmount(minimumOrder)}',
                             style: const TextStyle(fontSize: 12),
                           ),
                         ],

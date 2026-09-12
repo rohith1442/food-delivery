@@ -122,4 +122,31 @@ class ProductsApiService {
 
     return imageUrl;
   }
+
+  Future<String> uploadCategoryImage({required String filePath}) async {
+    final response = await _apiClient.uploadFile(
+      '/merchant/categories/images',
+      filePath: filePath,
+    );
+
+    final data = Map<String, dynamic>.from(response.data as Map);
+
+    final imageUrl = data['imageUrl']?.toString();
+
+    if (imageUrl == null || imageUrl.isEmpty) {
+      throw Exception('Category image upload failed');
+    }
+
+    return imageUrl;
+  }
+
+  Future<void> updateCategoryImage({
+    required String categoryId,
+    required String imageUrl,
+  }) async {
+    await _apiClient.patch(
+      '/merchant/categories/$categoryId/image',
+      data: {'imageUrl': imageUrl},
+    );
+  }
 }
