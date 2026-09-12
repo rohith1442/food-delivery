@@ -29,6 +29,18 @@ class ProductsApiService {
     return Map<String, dynamic>.from(data['category'] as Map);
   }
 
+  Future<void> updateCategory({
+    required String categoryId,
+    required String name,
+    required int sortOrder,
+    required bool isActive,
+  }) async {
+    await _apiClient.patch(
+      '/merchant/categories/$categoryId',
+      data: {'name': name, 'sortOrder': sortOrder, 'isActive': isActive},
+    );
+  }
+
   Future<List<Map<String, dynamic>>> getProducts() async {
     final response = await _apiClient.get('/merchant/products');
 

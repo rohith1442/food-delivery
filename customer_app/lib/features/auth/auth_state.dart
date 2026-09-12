@@ -4,15 +4,12 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 
 class AuthState extends ChangeNotifier {
-  AuthState({FirebaseAuth? auth})
-      : _auth = auth ?? FirebaseAuth.instance {
-    _subscription = _auth.authStateChanges().listen(
-      (user) {
-        _user = user;
-        _initialized = true;
-        notifyListeners();
-      },
-    );
+  AuthState({FirebaseAuth? auth}) : _auth = auth ?? FirebaseAuth.instance {
+    _subscription = _auth.authStateChanges().listen((user) {
+      _user = user;
+      _initialized = true;
+      notifyListeners();
+    });
   }
 
   final FirebaseAuth _auth;

@@ -7,15 +7,11 @@ class LocationPickerPage extends StatefulWidget {
   const LocationPickerPage({super.key});
 
   @override
-  State<LocationPickerPage> createState() =>
-      _LocationPickerPageState();
+  State<LocationPickerPage> createState() => _LocationPickerPageState();
 }
 
 class _LocationPickerPageState extends State<LocationPickerPage> {
-  static const LatLng _fallbackLocation = LatLng(
-    17.3850,
-    78.4867,
-  );
+  static const LatLng _fallbackLocation = LatLng(17.3850, 78.4867);
 
   final geocoding.Geocoding _geocoder = geocoding.Geocoding();
 
@@ -43,8 +39,7 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
     }
 
     try {
-      final serviceEnabled =
-      await Geolocator.isLocationServiceEnabled();
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
 
       if (!serviceEnabled) {
         if (!mounted) {
@@ -55,9 +50,7 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
           _loadingLocation = false;
         });
 
-        _showMessage(
-          'Please enable location services.',
-        );
+        _showMessage('Please enable location services.');
 
         return;
       }
@@ -78,9 +71,7 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
           _locationPermissionGranted = false;
         });
 
-        _showMessage(
-          'Location permission is required.',
-        );
+        _showMessage('Location permission is required.');
 
         return;
       }
@@ -97,7 +88,7 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
 
         _showMessage(
           'Location permission is permanently denied. '
-              'Please enable it from Settings.',
+          'Please enable it from Settings.',
         );
 
         return;
@@ -117,10 +108,7 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
         ),
       );
 
-      final location = LatLng(
-        position.latitude,
-        position.longitude,
-      );
+      final location = LatLng(position.latitude, position.longitude);
 
       if (!mounted) {
         return;
@@ -134,19 +122,14 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
       if (_mapController != null) {
         await _mapController!.animateCamera(
           CameraUpdate.newCameraPosition(
-            CameraPosition(
-              target: location,
-              zoom: 17,
-            ),
+            CameraPosition(target: location, zoom: 17),
           ),
         );
       }
 
       await _resolveAddress(location);
     } catch (error) {
-      debugPrint(
-        'Unable to get current location: $error',
-      );
+      debugPrint('Unable to get current location: $error');
 
       if (!mounted) {
         return;
@@ -156,15 +139,11 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
         _loadingLocation = false;
       });
 
-      _showMessage(
-        'Unable to get your current location.',
-      );
+      _showMessage('Unable to get your current location.');
     }
   }
 
-  Future<void> _resolveAddress(
-      LatLng location,
-      ) async {
+  Future<void> _resolveAddress(LatLng location) async {
     if (!mounted) {
       return;
     }
@@ -174,8 +153,7 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
     });
 
     try {
-      final placemarks =
-      await _geocoder.placemarkFromCoordinates(
+      final placemarks = await _geocoder.placemarkFromCoordinates(
         location.latitude,
         location.longitude,
       );
@@ -205,28 +183,18 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
       ];
 
       final address = parts
-          .where(
-            (part) =>
-        part != null &&
-            part.trim().isNotEmpty,
-      )
-          .map(
-            (part) => part!.trim(),
-      )
+          .where((part) => part != null && part.trim().isNotEmpty)
+          .map((part) => part!.trim())
           .toSet()
           .join(', ');
 
       setState(() {
-        _address = address.isEmpty
-            ? 'Selected location'
-            : address;
+        _address = address.isEmpty ? 'Selected location' : address;
 
         _resolvingAddress = false;
       });
     } catch (error) {
-      debugPrint(
-        'Reverse geocoding failed: $error',
-      );
+      debugPrint('Reverse geocoding failed: $error');
 
       if (!mounted) {
         return;
@@ -244,11 +212,8 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
       return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-      ),
-    );
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 
   void _confirmLocation() {
@@ -272,11 +237,7 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'Choose Location',
-        ),
-      ),
+      appBar: AppBar(title: const Text('Choose Location')),
       body: Stack(
         children: [
           GoogleMap(
@@ -293,10 +254,7 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
               if (_selectedLocation != _fallbackLocation) {
                 await controller.animateCamera(
                   CameraUpdate.newCameraPosition(
-                    CameraPosition(
-                      target: _selectedLocation,
-                      zoom: 17,
-                    ),
+                    CameraPosition(target: _selectedLocation, zoom: 17),
                   ),
                 );
               }
@@ -305,9 +263,7 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
               _selectedLocation = position.target;
             },
             onCameraIdle: () {
-              _resolveAddress(
-                _selectedLocation,
-              );
+              _resolveAddress(_selectedLocation);
             },
           ),
 
@@ -315,14 +271,8 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
           const IgnorePointer(
             child: Center(
               child: Padding(
-                padding: EdgeInsets.only(
-                  bottom: 36,
-                ),
-                child: Icon(
-                  Icons.location_pin,
-                  size: 48,
-                  color: Colors.red,
-                ),
+                padding: EdgeInsets.only(bottom: 36),
+                child: Icon(Icons.location_pin, size: 48, color: Colors.red),
               ),
             ),
           ),
@@ -333,12 +283,8 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
             bottom: 200,
             child: FloatingActionButton.small(
               heroTag: 'currentLocation',
-              onPressed: _loadingLocation
-                  ? null
-                  : _loadCurrentLocation,
-              child: const Icon(
-                Icons.my_location,
-              ),
+              onPressed: _loadingLocation ? null : _loadCurrentLocation,
+              child: const Icon(Icons.my_location),
             ),
           ),
 
@@ -351,13 +297,10 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
               top: false,
               child: Card(
                 child: Padding(
-                  padding: const EdgeInsets.all(
-                    16,
-                  ),
+                  padding: const EdgeInsets.all(16),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment:
-                    CrossAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text(
                         'Delivery Location',
@@ -372,9 +315,7 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
                       if (_resolvingAddress) ...[
                         const LinearProgressIndicator(),
                         const SizedBox(height: 8),
-                        const Text(
-                          'Finding address...',
-                        ),
+                        const Text('Finding address...'),
                       ] else
                         Text(
                           _address,
@@ -390,12 +331,8 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
                           onPressed: _resolvingAddress
                               ? null
                               : _confirmLocation,
-                          icon: const Icon(
-                            Icons.check,
-                          ),
-                          label: const Text(
-                            'Confirm Location',
-                          ),
+                          icon: const Icon(Icons.check),
+                          label: const Text('Confirm Location'),
                         ),
                       ),
                     ],
@@ -408,12 +345,8 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
           if (_loadingLocation)
             const Positioned.fill(
               child: ColoredBox(
-                color: Color(
-                  0x33000000,
-                ),
-                child: Center(
-                  child: CircularProgressIndicator(),
-                ),
+                color: Color(0x33000000),
+                child: Center(child: CircularProgressIndicator()),
               ),
             ),
         ],

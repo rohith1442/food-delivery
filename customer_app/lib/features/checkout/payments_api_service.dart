@@ -13,11 +13,7 @@ class PaymentsApiService {
   }) async {
     final response = await _apiClient.post(
       '/payments/razorpay/order',
-      data: {
-        'storeId': storeId,
-        'addressId': addressId,
-        'items': items,
-      },
+      data: {'storeId': storeId, 'addressId': addressId, 'items': items},
     );
 
     return Map<String, dynamic>.from(response.data as Map);

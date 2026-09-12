@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/config/app_branding.dart';
+import '../../core/config/home_config.dart';
 import '../../services/app_config_service.dart';
 import 'force_update_page.dart';
 import 'maintenance_page.dart';
@@ -37,6 +38,7 @@ class _AppStartupGateState extends State<AppStartupGate> {
       final result = await _service.check();
 
       AppBrandingController.instance.update(result.branding);
+      HomeConfigController.instance.update(result.home);
 
       if (!mounted) {
         return;

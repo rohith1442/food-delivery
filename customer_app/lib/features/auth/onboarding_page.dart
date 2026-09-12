@@ -101,12 +101,8 @@ class _OnboardingPageState extends State<OnboardingPage> {
                         Text(
                           item.title,
                           textAlign: TextAlign.center,
-                          style: Theme.of(context)
-                              .textTheme
-                              .headlineSmall
-                              ?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
+                          style: Theme.of(context).textTheme.headlineSmall
+                              ?.copyWith(fontWeight: FontWeight.bold),
                         ),
                         const SizedBox(height: 16),
                         Text(
@@ -132,10 +128,8 @@ class _OnboardingPageState extends State<OnboardingPage> {
                   decoration: BoxDecoration(
                     color: _currentPage == index
                         ? Theme.of(context).colorScheme.primary
-                        : Theme.of(context)
-                            .colorScheme
-                            .primary
-                            .withValues(alpha: 0.25),
+                        : Theme.of(context).colorScheme.primary
+                              .withValues(alpha: 0.25),
                     borderRadius: BorderRadius.circular(8),
                   ),
                 ),
@@ -150,9 +144,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
                 child: FilledButton(
                   onPressed: _nextPage,
                   child: Text(
-                    _currentPage == _items.length - 1
-                        ? 'Get Started'
-                        : 'Next',
+                    _currentPage == _items.length - 1 ? 'Get Started' : 'Next',
                   ),
                 ),
               ),

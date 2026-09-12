@@ -14,7 +14,6 @@ class ProductsPage extends StatefulWidget {
 
 class _ProductsPageState extends State<ProductsPage> {
   final ProductsApiService _apiService = ProductsApiService();
-  final ImagePicker _imagePicker = ImagePicker();
 
   List<Map<String, dynamic>> _products = [];
   List<Map<String, dynamic>> _categories = [];
@@ -22,7 +21,6 @@ class _ProductsPageState extends State<ProductsPage> {
   bool _isLoading = true;
   String? _error;
   String? _updatingProductId;
-  String? _updatingCategoryId;
 
   @override
   void initState() {
@@ -60,78 +58,22 @@ class _ProductsPageState extends State<ProductsPage> {
   }
 
   Future<void> _createCategory() async {
-    String categoryName = '';
+    final result = await Navigator.of(
+      context,
+    ).push<bool>(MaterialPageRoute(builder: (_) => const CategoryFormPage()));
 
-    final name = await showDialog<String>(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: const Text('Create Category'),
-          content: TextField(
-            autofocus: true,
-            textCapitalization: TextCapitalization.words,
-            decoration: const InputDecoration(
-              labelText: 'Category Name',
-              hintText: 'Example: Main Course',
-              border: OutlineInputBorder(),
-            ),
-            onChanged: (value) {
-              categoryName = value;
-            },
-            onSubmitted: (value) {
-              final name = value.trim();
+    if (result == true) {
+      await _loadData();
+    }
+  }
 
-              if (name.isNotEmpty) {
-                Navigator.of(dialogContext).pop(name);
-              }
-            },
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(dialogContext).pop();
-              },
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () {
-                final name = categoryName.trim();
-
-                if (name.isEmpty) {
-                  return;
-                }
-
-                Navigator.of(dialogContext).pop(name);
-              },
-              child: const Text('Create'),
-            ),
-          ],
-        );
-      },
+  Future<void> _editCategory(Map<String, dynamic> category) async {
+    final result = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(builder: (_) => CategoryFormPage(category: category)),
     );
 
-    if (name == null || name.isEmpty) {
-      return;
-    }
-
-    try {
-      final category = await _apiService.createCategory(name: name);
-
-      if (!mounted) return;
-
-      setState(() {
-        _categories.add(category);
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Category created successfully')),
-      );
-    } catch (error) {
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Unable to create category: $error')),
-      );
+    if (result == true) {
+      await _loadData();
     }
   }
 
@@ -178,62 +120,6 @@ class _ProductsPageState extends State<ProductsPage> {
 
     if (result == true) {
       await _loadData();
-    }
-  }
-
-  Future<void> _changeCategoryImage(Map<String, dynamic> category) async {
-    final categoryId = category['id']?.toString();
-
-    if (categoryId == null || categoryId.isEmpty) {
-      return;
-    }
-
-    final pickedFile = await _imagePicker.pickImage(
-      source: ImageSource.gallery,
-      imageQuality: 85,
-    );
-
-    if (pickedFile == null) {
-      return;
-    }
-
-    try {
-      setState(() {
-        _updatingCategoryId = categoryId;
-      });
-
-      final imageUrl = await _apiService.uploadCategoryImage(
-        filePath: pickedFile.path,
-      );
-
-      await _apiService.updateCategoryImage(
-        categoryId: categoryId,
-        imageUrl: imageUrl,
-      );
-
-      await _loadData();
-
-      if (!mounted) {
-        return;
-      }
-
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Category image updated')));
-    } catch (error) {
-      if (!mounted) {
-        return;
-      }
-
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Failed to update image: $error')));
-    } finally {
-      if (mounted) {
-        setState(() {
-          _updatingCategoryId = null;
-        });
-      }
     }
   }
 
@@ -593,81 +479,59 @@ class _ProductsPageState extends State<ProductsPage> {
             separatorBuilder: (_, _) => const SizedBox(width: 12),
             itemBuilder: (context, index) {
               final category = _categories[index];
-              final categoryId = category['id']?.toString();
               final imageUrl = category['imageUrl']?.toString();
-              final isUpdating = _updatingCategoryId == categoryId;
 
               return SizedBox(
                 width: 150,
                 child: Card(
                   clipBehavior: Clip.antiAlias,
-                  child: Padding(
-                    padding: const EdgeInsets.all(10),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        GestureDetector(
-                          onTap: isUpdating
-                              ? null
-                              : () => _changeCategoryImage(category),
-                          child: Stack(
-                            children: [
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(12),
-                                child: SizedBox(
-                                  width: 72,
-                                  height: 72,
-                                  child: imageUrl != null && imageUrl.isNotEmpty
-                                      ? Image.network(
-                                          imageUrl,
-                                          fit: BoxFit.cover,
-                                          errorBuilder:
-                                              (context, error, stackTrace) {
-                                                return Container(
-                                                  color: Theme.of(context)
-                                                      .colorScheme
-                                                      .surfaceContainerHighest,
-                                                  child: const Icon(
-                                                    Icons.category_outlined,
-                                                  ),
-                                                );
-                                              },
-                                        )
-                                      : Container(
-                                          color: Theme.of(context)
-                                              .colorScheme
-                                              .surfaceContainerHighest,
-                                          child: const Icon(
-                                            Icons.add_a_photo_outlined,
-                                          ),
-                                        ),
-                                ),
-                              ),
-                              if (isUpdating)
-                                Positioned.fill(
-                                  child: Container(
-                                    alignment: Alignment.center,
-                                    color: Colors.black38,
-                                    child: const SizedBox(
-                                      width: 22,
-                                      height: 22,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
+                  child: InkWell(
+                    onTap: () => _editCategory(category),
+                    child: Padding(
+                      padding: const EdgeInsets.all(10),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: SizedBox(
+                              width: 72,
+                              height: 72,
+                              child: imageUrl != null && imageUrl.isNotEmpty
+                                  ? Image.network(
+                                      imageUrl,
+                                      fit: BoxFit.cover,
+                                      errorBuilder:
+                                          (context, error, stackTrace) {
+                                            return Container(
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .surfaceContainerHighest,
+                                              child: const Icon(
+                                                Icons.category_outlined,
+                                              ),
+                                            );
+                                          },
+                                    )
+                                  : Container(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .surfaceContainerHighest,
+                                      child: const Icon(
+                                        Icons.add_a_photo_outlined,
                                       ),
                                     ),
-                                  ),
-                                ),
-                            ],
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          category['name']?.toString() ?? 'Category',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontWeight: FontWeight.w600),
-                        ),
-                      ],
+                          const SizedBox(height: 8),
+                          Text(
+                            category['name']?.toString() ?? 'Category',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -687,6 +551,287 @@ class _ProductsPageState extends State<ProductsPage> {
         else
           const SizedBox(height: 12),
       ],
+    );
+  }
+}
+
+class CategoryFormPage extends StatefulWidget {
+  const CategoryFormPage({super.key, this.category});
+
+  final Map<String, dynamic>? category;
+
+  @override
+  State<CategoryFormPage> createState() => _CategoryFormPageState();
+}
+
+class _CategoryFormPageState extends State<CategoryFormPage> {
+  final _formKey = GlobalKey<FormState>();
+  final ProductsApiService _apiService = ProductsApiService();
+  final ImagePicker _imagePicker = ImagePicker();
+
+  late final TextEditingController _nameController;
+  late final TextEditingController _sortOrderController;
+
+  XFile? _selectedImage;
+  String? _existingImageUrl;
+  bool _isActive = true;
+  bool _isSaving = false;
+
+  bool get _isEditing => widget.category != null;
+
+  @override
+  void initState() {
+    super.initState();
+
+    final category = widget.category;
+
+    _nameController = TextEditingController(
+      text: category?['name']?.toString() ?? '',
+    );
+    _sortOrderController = TextEditingController(
+      text: category?['sortOrder']?.toString() ?? '0',
+    );
+
+    _existingImageUrl = category?['imageUrl']?.toString();
+    if (_existingImageUrl?.isEmpty == true) {
+      _existingImageUrl = null;
+    }
+
+    _isActive = category?['isActive'] != false;
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _sortOrderController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickImage() async {
+    final image = await _imagePicker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 85,
+      maxWidth: 1600,
+    );
+
+    if (image == null || !mounted) {
+      return;
+    }
+
+    setState(() {
+      _selectedImage = image;
+    });
+  }
+
+  Future<void> _save() async {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    final sortOrder = int.tryParse(_sortOrderController.text.trim()) ?? 0;
+
+    try {
+      setState(() {
+        _isSaving = true;
+      });
+
+      if (_isEditing) {
+        final categoryId = widget.category!['id'].toString();
+
+        await _apiService.updateCategory(
+          categoryId: categoryId,
+          name: _nameController.text.trim(),
+          sortOrder: sortOrder,
+          isActive: _isActive,
+        );
+
+        if (_selectedImage != null) {
+          final imageUrl = await _apiService.uploadCategoryImage(
+            filePath: _selectedImage!.path,
+          );
+
+          await _apiService.updateCategoryImage(
+            categoryId: categoryId,
+            imageUrl: imageUrl,
+          );
+        }
+      } else {
+        final category = await _apiService.createCategory(
+          name: _nameController.text.trim(),
+        );
+
+        final categoryId = category['id']?.toString();
+
+        if (_selectedImage != null &&
+            categoryId != null &&
+            categoryId.isNotEmpty) {
+          final imageUrl = await _apiService.uploadCategoryImage(
+            filePath: _selectedImage!.path,
+          );
+
+          await _apiService.updateCategoryImage(
+            categoryId: categoryId,
+            imageUrl: imageUrl,
+          );
+        }
+
+        if (categoryId != null && categoryId.isNotEmpty && sortOrder != 0) {
+          await _apiService.updateCategory(
+            categoryId: categoryId,
+            name: _nameController.text.trim(),
+            sortOrder: sortOrder,
+            isActive: true,
+          );
+        }
+      }
+
+      if (!mounted) return;
+
+      Navigator.of(context).pop(true);
+    } catch (error) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Unable to save category: $error')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSaving = false;
+        });
+      }
+    }
+  }
+
+  Widget _buildImage() {
+    Widget child;
+
+    if (_selectedImage != null) {
+      child = Image.file(
+        File(_selectedImage!.path),
+        fit: BoxFit.cover,
+        width: double.infinity,
+        height: double.infinity,
+      );
+    } else if (_existingImageUrl != null) {
+      child = Image.network(
+        _existingImageUrl!,
+        fit: BoxFit.cover,
+        width: double.infinity,
+        height: double.infinity,
+        errorBuilder: (_, _, _) {
+          return const Center(
+            child: Icon(Icons.broken_image_outlined, size: 48),
+          );
+        },
+      );
+    } else {
+      child = const Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.add_photo_alternate_outlined, size: 48),
+          SizedBox(height: 8),
+          Text('Choose Category Image'),
+        ],
+      );
+    }
+
+    return InkWell(
+      onTap: _isSaving ? null : _pickImage,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        height: 190,
+        width: double.infinity,
+        clipBehavior: Clip.antiAlias,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        ),
+        child: child,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(_isEditing ? 'Edit Category' : 'Add Category'),
+      ),
+      body: Form(
+        key: _formKey,
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            _buildImage(),
+            const SizedBox(height: 20),
+            OutlinedButton.icon(
+              onPressed: _isSaving ? null : _pickImage,
+              icon: const Icon(Icons.image_outlined),
+              label: Text(
+                _selectedImage != null || _existingImageUrl != null
+                    ? 'Change Image'
+                    : 'Select Image',
+              ),
+            ),
+            const SizedBox(height: 20),
+            TextFormField(
+              controller: _nameController,
+              textCapitalization: TextCapitalization.words,
+              decoration: const InputDecoration(
+                labelText: 'Category Name',
+                border: OutlineInputBorder(),
+              ),
+              validator: (value) {
+                if (value == null || value.trim().isEmpty) {
+                  return 'Category name is required';
+                }
+
+                return null;
+              },
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _sortOrderController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Sort Order',
+                hintText: '0',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            if (_isEditing) ...[
+              const SizedBox(height: 12),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Active'),
+                subtitle: Text(
+                  _isActive ? 'Visible to customers' : 'Hidden from customers',
+                ),
+                value: _isActive,
+                onChanged: _isSaving
+                    ? null
+                    : (value) {
+                        setState(() {
+                          _isActive = value;
+                        });
+                      },
+              ),
+            ],
+            const SizedBox(height: 24),
+            FilledButton(
+              onPressed: _isSaving ? null : _save,
+              child: _isSaving
+                  ? const SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : Text(_isEditing ? 'Save Changes' : 'Create Category'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

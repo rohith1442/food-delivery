@@ -37,6 +37,23 @@ interface Settings {
   supportPhone: string;
   deliveryPromiseText: string;
 
+  home: {
+    enabledModules: string[];
+    sections: Array<{
+      id: "modules" | "promo" | "categories" | "nearby";
+      enabled: boolean;
+      sortOrder: number;
+    }>;
+    promoBanner: {
+      enabled: boolean;
+      title: string;
+      subtitle: string;
+      imageUrl: string;
+      actionType: "NONE" | "MODULE" | "CATEGORY";
+      actionValue: string;
+    };
+  };
+
   updatedAt?: string;
 }
 
@@ -66,6 +83,24 @@ const defaultSettings: Settings = {
   currencySymbol: "₹",
   supportPhone: "",
   deliveryPromiseText: "20-Min Delivery",
+
+  home: {
+    enabledModules: ["food", "grocery"],
+    sections: [
+      { id: "modules", enabled: true, sortOrder: 1 },
+      { id: "promo", enabled: true, sortOrder: 2 },
+      { id: "categories", enabled: true, sortOrder: 3 },
+      { id: "nearby", enabled: true, sortOrder: 4 },
+    ],
+    promoBanner: {
+      enabled: true,
+      title: "Fresh deals for you",
+      subtitle: "Order your favourites today",
+      imageUrl: "",
+      actionType: "NONE",
+      actionValue: "",
+    },
+  },
 };
 
 export default function SettingsPage() {
@@ -97,6 +132,20 @@ export default function SettingsPage() {
       setSettings({
         ...defaultSettings,
         ...response.data,
+        home: {
+          ...defaultSettings.home,
+          ...(response.data.home ?? {}),
+          promoBanner: {
+            ...defaultSettings.home.promoBanner,
+            ...(response.data.home?.promoBanner ?? {}),
+          },
+          sections:
+            response.data.home?.sections ??
+            defaultSettings.home.sections,
+          enabledModules:
+            response.data.home?.enabledModules ??
+            defaultSettings.home.enabledModules,
+        },
       });
     } catch (error) {
       if (axios.isAxiosError(error)) {
@@ -125,6 +174,74 @@ export default function SettingsPage() {
     setSettings((current) => ({
       ...current,
       [field]: value,
+    }));
+  };
+
+  const toggleModule = (
+    moduleId: "food" | "grocery",
+  ) => {
+    setSettings((current) => {
+      const enabled =
+        current.home.enabledModules.includes(moduleId);
+
+      return {
+        ...current,
+        home: {
+          ...current.home,
+          enabledModules: enabled
+            ? current.home.enabledModules.filter(
+                (item) => item !== moduleId,
+              )
+            : [
+                ...current.home.enabledModules,
+                moduleId,
+              ],
+        },
+      };
+    });
+  };
+
+  const updateHomeSection = (
+    sectionId:
+      | "modules"
+      | "promo"
+      | "categories"
+      | "nearby",
+    field: "enabled" | "sortOrder",
+    value: boolean | number,
+  ) => {
+    setSettings((current) => ({
+      ...current,
+      home: {
+        ...current.home,
+        sections: current.home.sections.map(
+          (section) =>
+            section.id === sectionId
+              ? {
+                  ...section,
+                  [field]: value,
+                }
+              : section,
+        ),
+      },
+    }));
+  };
+
+  const updatePromoField = <
+    K extends keyof Settings["home"]["promoBanner"],
+  >(
+    field: K,
+    value: Settings["home"]["promoBanner"][K],
+  ) => {
+    setSettings((current) => ({
+      ...current,
+      home: {
+        ...current.home,
+        promoBanner: {
+          ...current.home.promoBanner,
+          [field]: value,
+        },
+      },
     }));
   };
 
@@ -181,6 +298,19 @@ export default function SettingsPage() {
         supportPhone: settings.supportPhone.trim(),
         deliveryPromiseText:
           settings.deliveryPromiseText.trim(),
+
+        home: {
+          enabledModules: settings.home.enabledModules,
+          sections: settings.home.sections,
+          promoBanner: {
+            enabled: settings.home.promoBanner.enabled,
+            title: settings.home.promoBanner.title.trim(),
+            subtitle: settings.home.promoBanner.subtitle.trim(),
+            imageUrl: settings.home.promoBanner.imageUrl.trim(),
+            actionType: settings.home.promoBanner.actionType,
+            actionValue: settings.home.promoBanner.actionValue.trim(),
+          },
+        },
       };
 
       await api.patch(
@@ -571,6 +701,166 @@ export default function SettingsPage() {
               )
             }
           />
+
+          <section className="rounded-xl border border-gray-200 bg-white p-6">
+            <h2 className="text-xl font-semibold">
+              Home Configuration
+            </h2>
+
+            <p className="mt-1 text-sm text-gray-500">
+              Control what customers see on the home screen.
+            </p>
+
+            <div className="mt-6">
+              <h3 className="font-medium">Enabled Modules</h3>
+
+              <div className="mt-3 flex gap-6">
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={settings.home.enabledModules.includes("food")}
+                    onChange={() => toggleModule("food")}
+                  />
+                  Food
+                </label>
+
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={settings.home.enabledModules.includes("grocery")}
+                    onChange={() => toggleModule("grocery")}
+                  />
+                  Grocery
+                </label>
+              </div>
+            </div>
+
+            <div className="mt-8">
+              <h3 className="font-medium">Home Sections</h3>
+
+              <div className="mt-4 space-y-3">
+                {settings.home.sections.map((section) => (
+                  <div
+                    key={section.id}
+                    className="flex items-center justify-between rounded-lg border p-4"
+                  >
+                    <div>
+                      <p className="font-medium capitalize">{section.id}</p>
+                      <p className="text-sm text-gray-500">
+                        Show this section on customer home.
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-4">
+                      <input
+                        type="number"
+                        min={1}
+                        className="w-20 rounded-md border px-3 py-2"
+                        value={section.sortOrder}
+                        onChange={(event) =>
+                          updateHomeSection(
+                            section.id,
+                            "sortOrder",
+                            Number(event.target.value),
+                          )
+                        }
+                      />
+
+                      <input
+                        type="checkbox"
+                        checked={section.enabled}
+                        onChange={(event) =>
+                          updateHomeSection(
+                            section.id,
+                            "enabled",
+                            event.target.checked,
+                          )
+                        }
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-8">
+              <h3 className="font-medium">Promo Banner</h3>
+
+              <div className="mt-4 grid gap-4 md:grid-cols-2">
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={settings.home.promoBanner.enabled}
+                    onChange={(event) =>
+                      updatePromoField("enabled", event.target.checked)
+                    }
+                  />
+                  Enabled
+                </label>
+
+                <div />
+
+                <TextField
+                  label="Title"
+                  value={settings.home.promoBanner.title}
+                  onChange={(value) => updatePromoField("title", value)}
+                />
+
+                <TextField
+                  label="Subtitle"
+                  value={settings.home.promoBanner.subtitle}
+                  onChange={(value) => updatePromoField("subtitle", value)}
+                />
+
+                <TextField
+                  label="Image URL"
+                  value={settings.home.promoBanner.imageUrl}
+                  onChange={(value) => updatePromoField("imageUrl", value)}
+                />
+
+                <label>
+                  <span className="text-sm font-medium text-gray-700">
+                    Action
+                  </span>
+
+                  <select
+                    className="mt-2 w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-gray-500"
+                    value={settings.home.promoBanner.actionType}
+                    onChange={(event) =>
+                      updatePromoField(
+                        "actionType",
+                        event.target.value as
+                          | "NONE"
+                          | "MODULE"
+                          | "CATEGORY",
+                      )
+                    }
+                  >
+                    <option value="NONE">None</option>
+                    <option value="MODULE">Module</option>
+                    <option value="CATEGORY">Category</option>
+                  </select>
+                </label>
+
+                {settings.home.promoBanner.actionType !== "NONE" && (
+                  <div className="md:col-span-2">
+                    <TextField
+                      label="Action Value"
+                      value={settings.home.promoBanner.actionValue}
+                      placeholder={
+                        settings.home.promoBanner.actionType === "MODULE"
+                          ? "food"
+                          : "Biryani"
+                      }
+                      onChange={(value) =>
+                        updatePromoField("actionValue", value)
+                      }
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+          </section>
 
           {settings.updatedAt && (
             <p className="text-sm text-gray-500">

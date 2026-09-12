@@ -36,10 +36,7 @@ class OrderSuccessPage extends StatelessWidget {
                 const SizedBox(height: 24),
                 const Text(
                   'Order Placed!',
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 12),
                 const Text(
@@ -83,9 +80,7 @@ class OrderSuccessPage extends StatelessWidget {
                   height: 52,
                   child: FilledButton(
                     onPressed: () {
-                      Navigator.of(context).popUntil(
-                        (route) => route.isFirst,
-                      );
+                      Navigator.of(context).popUntil((route) => route.isFirst);
                     },
                     child: const Text('Back to Home'),
                   ),

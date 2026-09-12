@@ -5,11 +5,9 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import '../core/network/api_client.dart';
 
 class NotificationService {
-  NotificationService({
-    FirebaseMessaging? messaging,
-    ApiClient? apiClient,
-  })  : _messaging = messaging ?? FirebaseMessaging.instance,
-        _apiClient = apiClient ?? ApiClient();
+  NotificationService({FirebaseMessaging? messaging, ApiClient? apiClient})
+    : _messaging = messaging ?? FirebaseMessaging.instance,
+      _apiClient = apiClient ?? ApiClient();
 
   final FirebaseMessaging _messaging;
   final ApiClient _apiClient;
@@ -23,19 +21,13 @@ class NotificationService {
       await _registerToken(token);
     }
 
-    _messaging.onTokenRefresh.listen(
-      (token) async {
-        await _registerToken(token);
-      },
-    );
+    _messaging.onTokenRefresh.listen((token) async {
+      await _registerToken(token);
+    });
   }
 
   Future<void> _requestPermission() async {
-    await _messaging.requestPermission(
-      alert: true,
-      badge: true,
-      sound: true,
-    );
+    await _messaging.requestPermission(alert: true, badge: true, sound: true);
   }
 
   Future<void> _registerToken(String token) async {

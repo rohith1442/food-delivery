@@ -11,10 +11,7 @@ class AppTheme {
       seedColor: const Color(0xFFFF5722),
       brightness: Brightness.light,
     ),
-    appBarTheme: const AppBarTheme(
-      centerTitle: false,
-      elevation: 0,
-    ),
+    appBarTheme: const AppBarTheme(centerTitle: false, elevation: 0),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
       border: OutlineInputBorder(

@@ -34,6 +34,23 @@ interface GlobalSettings {
   currencySymbol?: string;
   supportPhone?: string;
   deliveryPromiseText?: string;
+
+  home?: {
+    enabledModules?: string[];
+    sections?: Array<{
+      id: string;
+      enabled: boolean;
+      sortOrder: number;
+    }>;
+    promoBanner?: {
+      enabled?: boolean;
+      title?: string;
+      subtitle?: string;
+      imageUrl?: string;
+      actionType?: 'NONE' | 'MODULE' | 'CATEGORY';
+      actionValue?: string;
+    };
+  };
 }
 
 @Injectable()
@@ -92,6 +109,57 @@ export class SettingsService {
         '20-Min Delivery',
     };
 
+    const home = {
+      enabledModules:
+        settings.home?.enabledModules ?? [
+          'food',
+          'grocery',
+        ],
+      sections:
+        settings.home?.sections ?? [
+          {
+            id: 'modules',
+            enabled: true,
+            sortOrder: 1,
+          },
+          {
+            id: 'promo',
+            enabled: true,
+            sortOrder: 2,
+          },
+          {
+            id: 'categories',
+            enabled: true,
+            sortOrder: 3,
+          },
+          {
+            id: 'nearby',
+            enabled: true,
+            sortOrder: 4,
+          },
+        ],
+      promoBanner: {
+        enabled:
+          settings.home?.promoBanner?.enabled ??
+          true,
+        title:
+          settings.home?.promoBanner?.title ??
+          'Fresh deals for you',
+        subtitle:
+          settings.home?.promoBanner?.subtitle ??
+          'Order your favourites today',
+        imageUrl:
+          settings.home?.promoBanner?.imageUrl ??
+          '',
+        actionType:
+          settings.home?.promoBanner?.actionType ??
+          'NONE',
+        actionValue:
+          settings.home?.promoBanner?.actionValue ??
+          '',
+      },
+    };
+
     switch (appType) {
       case 'CUSTOMER':
         return {
@@ -104,6 +172,7 @@ export class SettingsService {
             settings.customerForceUpdate ===
             true,
           branding,
+          home,
         };
 
       case 'MERCHANT':

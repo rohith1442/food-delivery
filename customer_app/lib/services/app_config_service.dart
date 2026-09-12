@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 import '../core/config/app_branding.dart';
+import '../core/config/home_config.dart';
 
 class AppConfigResult {
   final bool maintenanceMode;
@@ -9,6 +10,7 @@ class AppConfigResult {
   final String currentVersion;
   final String minimumVersion;
   final AppBranding branding;
+  final HomeConfig home;
 
   const AppConfigResult({
     required this.maintenanceMode,
@@ -16,6 +18,7 @@ class AppConfigResult {
     required this.currentVersion,
     required this.minimumVersion,
     required this.branding,
+    required this.home,
   });
 }
 
@@ -48,6 +51,12 @@ class AppConfigService {
 
     final branding = AppBranding.fromJson(brandingJson);
 
+    final homeJson = data['home'] is Map
+        ? Map<String, dynamic>.from(data['home'] as Map)
+        : null;
+
+    final home = HomeConfig.fromJson(homeJson);
+
     final packageInfo = await PackageInfo.fromPlatform();
 
     final currentVersion = packageInfo.version;
@@ -59,6 +68,7 @@ class AppConfigService {
       currentVersion: currentVersion,
       minimumVersion: minimumVersion,
       branding: branding,
+      home: home,
     );
   }
 

@@ -45,9 +45,8 @@ class _SplashPageState extends State<SplashPage> {
             const SizedBox(height: 24),
             Text(
               'Food Delivery',
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+              style: Theme.of(context).textTheme.headlineSmall
+                  ?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             Text(

@@ -11,8 +11,7 @@ class OrdersPage extends StatefulWidget {
 }
 
 class _OrdersPageState extends State<OrdersPage> {
-  final OrdersApiService _ordersApiService =
-      OrdersApiService();
+  final OrdersApiService _ordersApiService = OrdersApiService();
 
   bool _loading = true;
   String? _error;
@@ -40,7 +39,7 @@ class _OrdersPageState extends State<OrdersPage> {
         _loading = false;
       });
     } catch (error) {
-    debugPrint('LOAD ORDERS ERROR: $error');
+      debugPrint('LOAD ORDERS ERROR: $error');
 
       if (!mounted) return;
 
@@ -72,16 +71,19 @@ class _OrdersPageState extends State<OrdersPage> {
       return '';
     }
 
-    return value.map((item) {
-      if (item is! Map) {
-        return '';
-      }
+    return value
+        .map((item) {
+          if (item is! Map) {
+            return '';
+          }
 
-      final name = item['name'] ?? 'Item';
-      final quantity = item['quantity'] ?? 1;
+          final name = item['name'] ?? 'Item';
+          final quantity = item['quantity'] ?? 1;
 
-      return '$name × $quantity';
-    }).where((item) => item.isNotEmpty).join(', ');
+          return '$name × $quantity';
+        })
+        .where((item) => item.isNotEmpty)
+        .join(', ');
   }
 
   String _formatStatus(dynamic value) {
@@ -116,18 +118,14 @@ class _OrdersPageState extends State<OrdersPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('My Orders'),
-      ),
+      appBar: AppBar(title: const Text('My Orders')),
       body: _buildBody(),
     );
   }
 
   Widget _buildBody() {
     if (_loading) {
-      return const Center(
-        child: CircularProgressIndicator(),
-      );
+      return const Center(child: CircularProgressIndicator());
     }
 
     if (_error != null) {
@@ -137,20 +135,11 @@ class _OrdersPageState extends State<OrdersPage> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(
-                Icons.error_outline,
-                size: 48,
-              ),
+              const Icon(Icons.error_outline, size: 48),
               const SizedBox(height: 16),
-              Text(
-                _error!,
-                textAlign: TextAlign.center,
-              ),
+              Text(_error!, textAlign: TextAlign.center),
               const SizedBox(height: 16),
-              FilledButton(
-                onPressed: _loadOrders,
-                child: const Text('Retry'),
-              ),
+              FilledButton(onPressed: _loadOrders, child: const Text('Retry')),
             ],
           ),
         ),
@@ -163,9 +152,7 @@ class _OrdersPageState extends State<OrdersPage> {
         child: ListView(
           children: const [
             SizedBox(height: 180),
-            Center(
-              child: Text('No orders yet'),
-            ),
+            Center(child: Text('No orders yet')),
           ],
         ),
       );
@@ -179,20 +166,15 @@ class _OrdersPageState extends State<OrdersPage> {
         itemBuilder: (context, index) {
           final order = _orders[index];
 
-          final orderId =
-              order['id']?.toString() ?? '';
+          final orderId = order['id']?.toString() ?? '';
 
-          final total =
-              order['total']?.toString() ?? '0';
+          final total = order['total']?.toString() ?? '0';
 
-          final status =
-              _formatStatus(order['status']);
+          final status = _formatStatus(order['status']);
 
-          final items =
-              _formatItems(order['items']);
+          final items = _formatItems(order['items']);
 
-          final date =
-              _formatDate(order['createdAt']);
+          final date = _formatDate(order['createdAt']);
 
           return Card(
             margin: const EdgeInsets.only(bottom: 12),
@@ -200,9 +182,7 @@ class _OrdersPageState extends State<OrdersPage> {
               onTap: () {
                 Navigator.of(context).push(
                   MaterialPageRoute(
-                    builder: (_) => OrderDetailsPage(
-                      order: order,
-                    ),
+                    builder: (_) => OrderDetailsPage(order: order),
                   ),
                 );
               },
@@ -210,8 +190,7 @@ class _OrdersPageState extends State<OrdersPage> {
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
                       children: [
@@ -222,27 +201,22 @@ class _OrdersPageState extends State<OrdersPage> {
                             color: Theme.of(context)
                                 .colorScheme
                                 .primaryContainer,
-                            borderRadius:
-                                BorderRadius.circular(10),
+                            borderRadius: BorderRadius.circular(10),
                           ),
                           child: Icon(
                             Icons.restaurant,
-                            color: Theme.of(context)
-                                .colorScheme
-                                .primary,
+                            color: Theme.of(context).colorScheme.primary,
                           ),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Column(
-                            crossAxisAlignment:
-                                CrossAxisAlignment.start,
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               const Text(
                                 'Food Order',
                                 style: TextStyle(
-                                  fontWeight:
-                                      FontWeight.bold,
+                                  fontWeight: FontWeight.bold,
                                   fontSize: 16,
                                 ),
                               ),
@@ -259,21 +233,14 @@ class _OrdersPageState extends State<OrdersPage> {
                             ],
                           ),
                         ),
-                        _StatusBadge(
-                          status: status,
-                        ),
+                        _StatusBadge(status: status),
                       ],
                     ),
                     const SizedBox(height: 16),
-                    Text(
-                      items,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
+                    Text(items, maxLines: 2, overflow: TextOverflow.ellipsis),
                     const SizedBox(height: 12),
                     Row(
-                      mainAxisAlignment:
-                          MainAxisAlignment.spaceBetween,
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
                           date,
@@ -305,23 +272,16 @@ class _OrdersPageState extends State<OrdersPage> {
 }
 
 class _StatusBadge extends StatelessWidget {
-  const _StatusBadge({
-    required this.status,
-  });
+  const _StatusBadge({required this.status});
 
   final String status;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 10,
-        vertical: 6,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: Theme.of(context)
-            .colorScheme
-            .primaryContainer,
+        color: Theme.of(context).colorScheme.primaryContainer,
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
@@ -329,9 +289,7 @@ class _StatusBadge extends StatelessWidget {
         style: TextStyle(
           fontSize: 12,
           fontWeight: FontWeight.bold,
-          color: Theme.of(context)
-              .colorScheme
-              .primary,
+          color: Theme.of(context).colorScheme.primary,
         ),
       ),
     );

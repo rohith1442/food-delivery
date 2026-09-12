@@ -20,17 +20,13 @@ class CartItem {
   /// Backend remains the final authority.
   final int availableStock;
 
-  CartItem copyWith({
-    int? quantity,
-    int? availableStock,
-  }) {
+  CartItem copyWith({int? quantity, int? availableStock}) {
     return CartItem(
       id: id,
       name: name,
       price: price,
       quantity: quantity ?? this.quantity,
-      availableStock:
-      availableStock ?? this.availableStock,
+      availableStock: availableStock ?? this.availableStock,
     );
   }
 }
@@ -60,28 +56,17 @@ class CartState {
     return CartState(
       storeId: storeId ?? this.storeId,
       storeName: storeName ?? this.storeName,
-      storeAddress:
-      storeAddress ?? this.storeAddress,
+      storeAddress: storeAddress ?? this.storeAddress,
       items: items ?? this.items,
     );
   }
 }
 
-enum AddToCartResult {
-  added,
-  differentStore,
-  outOfStock,
-  maxStockReached,
-}
+enum AddToCartResult { added, differentStore, outOfStock, maxStockReached }
 
-enum IncreaseQuantityResult {
-  increased,
-  itemNotFound,
-  maxStockReached,
-}
+enum IncreaseQuantityResult { increased, itemNotFound, maxStockReached }
 
-class CartNotifier
-    extends Notifier<CartState> {
+class CartNotifier extends Notifier<CartState> {
   @override
   CartState build() {
     return const CartState();
@@ -106,9 +91,7 @@ class CartNotifier
       return AddToCartResult.differentStore;
     }
 
-    final index = state.items.indexWhere(
-          (item) => item.id == id,
-    );
+    final index = state.items.indexWhere((item) => item.id == id);
 
     if (index == -1) {
       state = CartState(
@@ -130,39 +113,29 @@ class CartNotifier
       return AddToCartResult.added;
     }
 
-    final existingItem =
-    state.items[index];
+    final existingItem = state.items[index];
 
-    if (existingItem.quantity >=
-        availableStock) {
+    if (existingItem.quantity >= availableStock) {
       return AddToCartResult.maxStockReached;
     }
 
     final items = [...state.items];
 
-    items[index] =
-        existingItem.copyWith(
-          quantity:
-          existingItem.quantity + 1,
+    items[index] = existingItem.copyWith(
+      quantity: existingItem.quantity + 1,
 
-          // Refresh stock with latest value
-          // supplied from product page.
-          availableStock: availableStock,
-        );
-
-    state = state.copyWith(
-      items: items,
+      // Refresh stock with latest value
+      // supplied from product page.
+      availableStock: availableStock,
     );
+
+    state = state.copyWith(items: items);
 
     return AddToCartResult.added;
   }
 
-  IncreaseQuantityResult increaseQuantity(
-      String id,
-      ) {
-    final index = state.items.indexWhere(
-          (item) => item.id == id,
-    );
+  IncreaseQuantityResult increaseQuantity(String id) {
+    final index = state.items.indexWhere((item) => item.id == id);
 
     if (index == -1) {
       return IncreaseQuantityResult.itemNotFound;
@@ -170,29 +143,21 @@ class CartNotifier
 
     final item = state.items[index];
 
-    if (item.quantity >=
-        item.availableStock) {
-      return IncreaseQuantityResult
-          .maxStockReached;
+    if (item.quantity >= item.availableStock) {
+      return IncreaseQuantityResult.maxStockReached;
     }
 
     final items = [...state.items];
 
-    items[index] = item.copyWith(
-      quantity: item.quantity + 1,
-    );
+    items[index] = item.copyWith(quantity: item.quantity + 1);
 
-    state = state.copyWith(
-      items: items,
-    );
+    state = state.copyWith(items: items);
 
     return IncreaseQuantityResult.increased;
   }
 
   void decreaseQuantity(String id) {
-    final index = state.items.indexWhere(
-          (item) => item.id == id,
-    );
+    final index = state.items.indexWhere((item) => item.id == id);
 
     if (index == -1) return;
 
@@ -205,30 +170,20 @@ class CartNotifier
 
     final items = [...state.items];
 
-    items[index] = item.copyWith(
-      quantity: item.quantity - 1,
-    );
+    items[index] = item.copyWith(quantity: item.quantity - 1);
 
-    state = state.copyWith(
-      items: items,
-    );
+    state = state.copyWith(items: items);
   }
 
   void removeItem(String id) {
-    final items = state.items
-        .where(
-          (item) => item.id != id,
-    )
-        .toList();
+    final items = state.items.where((item) => item.id != id).toList();
 
     if (items.isEmpty) {
       clearCart();
       return;
     }
 
-    state = state.copyWith(
-      items: items,
-    );
+    state = state.copyWith(items: items);
   }
 
   void clearCart() {
@@ -238,9 +193,7 @@ class CartNotifier
   int get subtotal {
     return state.items.fold(
       0,
-          (total, item) =>
-      total +
-          (item.price * item.quantity),
+      (total, item) => total + (item.price * item.quantity),
     );
   }
 
@@ -257,17 +210,10 @@ class CartNotifier
   }
 
   int get itemCount {
-    return state.items.fold(
-      0,
-          (total, item) =>
-      total + item.quantity,
-    );
+    return state.items.fold(0, (total, item) => total + item.quantity);
   }
 }
 
-final cartProvider =
-NotifierProvider<
-    CartNotifier,
-    CartState>(
+final cartProvider = NotifierProvider<CartNotifier, CartState>(
   CartNotifier.new,
 );

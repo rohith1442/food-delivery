@@ -15,6 +15,7 @@ class HomeCategoryItem extends StatelessWidget {
     final name = category['name']?.toString() ?? 'Category';
     final moduleId = category['moduleId']?.toString() ?? 'food';
     final storeCount = category['storeCount'] ?? 0;
+    final imageUrl = category['imageUrl']?.toString();
     final primary = Theme.of(context).colorScheme.primary;
 
     return SizedBox(
@@ -26,14 +27,30 @@ class HomeCategoryItem extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 4),
           child: Column(
             children: [
-              Container(
-                width: 68,
-                height: 68,
-                decoration: BoxDecoration(
+              ClipRRect(
+                borderRadius: BorderRadius.circular(18),
+                child: Container(
+                  width: 68,
+                  height: 68,
                   color: primary.withValues(alpha: 0.09),
-                  borderRadius: BorderRadius.circular(18),
+                  child: imageUrl != null && imageUrl.isNotEmpty
+                      ? Image.network(
+                          imageUrl,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Icon(
+                              _getIcon(name, moduleId),
+                              color: primary,
+                              size: 30,
+                            );
+                          },
+                        )
+                      : Icon(
+                          _getIcon(name, moduleId),
+                          color: primary,
+                          size: 30,
+                        ),
                 ),
-                child: Icon(_getIcon(name, moduleId), color: primary, size: 30),
               ),
               const SizedBox(height: 8),
               Text(

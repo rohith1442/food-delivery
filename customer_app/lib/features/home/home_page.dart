@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/config/app_branding.dart';
+import '../../core/config/home_config.dart';
 import '../location/addresses_api_service.dart';
 import '../location/saved_addresses_page.dart';
 import '../orders/orders_page.dart';
@@ -131,14 +132,37 @@ class _HomePageState extends State<HomePage> {
     });
 
     try {
+      final homeConfig = HomeConfigController.instance.config;
+      final foodEnabled = homeConfig.moduleEnabled('food');
+      final groceryEnabled = homeConfig.moduleEnabled('grocery');
+
+      final foodStoresFuture = foodEnabled
+          ? _storesApiService.getStores(moduleId: 'food', zoneId: zoneId)
+          : Future.value(<Map<String, dynamic>>[]);
+
+      final groceryStoresFuture = groceryEnabled
+          ? _storesApiService.getStores(moduleId: 'grocery', zoneId: zoneId)
+          : Future.value(<Map<String, dynamic>>[]);
+
+      final foodCategoriesFuture = foodEnabled
+          ? _storesApiService.getHomeCategories(
+              moduleId: 'food',
+              zoneId: zoneId,
+            )
+          : Future.value(<Map<String, dynamic>>[]);
+
+      final groceryCategoriesFuture = groceryEnabled
+          ? _storesApiService.getHomeCategories(
+              moduleId: 'grocery',
+              zoneId: zoneId,
+            )
+          : Future.value(<Map<String, dynamic>>[]);
+
       final results = await Future.wait([
-        _storesApiService.getStores(moduleId: 'food', zoneId: zoneId),
-        _storesApiService.getStores(moduleId: 'grocery', zoneId: zoneId),
-        _storesApiService.getHomeCategories(moduleId: 'food', zoneId: zoneId),
-        _storesApiService.getHomeCategories(
-          moduleId: 'grocery',
-          zoneId: zoneId,
-        ),
+        foodStoresFuture,
+        groceryStoresFuture,
+        foodCategoriesFuture,
+        groceryCategoriesFuture,
       ]);
 
       if (!mounted) {
@@ -254,6 +278,28 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
+  void _onPromoTap(HomeConfig homeConfig) {
+    final promo = homeConfig.promoBanner;
+
+    switch (promo.actionType) {
+      case 'MODULE':
+        if (promo.actionValue.isNotEmpty) {
+          _openRestaurants(moduleId: promo.actionValue);
+        }
+        break;
+
+      case 'CATEGORY':
+        if (promo.actionValue.isNotEmpty) {
+          _openRestaurants(moduleId: 'food', category: promo.actionValue);
+        }
+        break;
+
+      case 'NONE':
+      default:
+        break;
+    }
+  }
+
   void _onNavigationTap(int index) {
     if (index == 0) {
       setState(() {
@@ -332,11 +378,278 @@ class _HomePageState extends State<HomePage> {
         .showSnackBar(SnackBar(content: Text(message)));
   }
 
+  Widget _buildHeaderSliver(AppBranding branding) {
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            HomeHeader(
+              address: _selectedAddress,
+              loadingAddress: _isLoadingAddress,
+              onLocationTap: _chooseLocation,
+              onNotificationTap: () {
+                _showMessage('No new notifications.');
+              },
+              onLogoutTap: _logout,
+            ),
+            const SizedBox(height: 22),
+            Text(
+              branding.appName,
+              style: Theme.of(context).textTheme.headlineSmall
+                  ?.copyWith(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 4),
+            Text(branding.tagline, style: TextStyle(color: Colors.grey[700])),
+            const SizedBox(height: 20),
+            HomeSearchBar(
+              controller: _searchController,
+              onChanged: _onSearchChanged,
+            ),
+            const SizedBox(height: 22),
+          ],
+        ),
+      ),
+    );
+  }
+
+  List<Widget> _buildSectionSlivers(String sectionId, HomeConfig config) {
+    switch (sectionId) {
+      case 'modules':
+        return _buildModulesSlivers(config);
+      case 'promo':
+        return _buildPromoSlivers(config);
+      case 'categories':
+        return _buildCategorySlivers();
+      case 'nearby':
+        return _buildNearbySlivers(config);
+      default:
+        return [];
+    }
+  }
+
+  List<Widget> _buildModulesSlivers(HomeConfig config) {
+    final modules = config.enabledModules
+        .where((module) => module == 'food' || module == 'grocery')
+        .toList();
+
+    if (modules.isEmpty) {
+      return [];
+    }
+
+    return [
+      SliverToBoxAdapter(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Row(
+            children: [
+              for (var index = 0; index < modules.length; index++) ...[
+                if (index > 0) const SizedBox(width: 12),
+                Expanded(
+                  child: ModuleCard(
+                    title: modules[index] == 'food' ? 'Food' : 'Grocery',
+                    subtitle: modules[index] == 'food'
+                        ? 'Restaurants & meals'
+                        : 'Daily essentials',
+                    icon: modules[index] == 'food'
+                        ? Icons.restaurant
+                        : Icons.shopping_basket,
+                    highlighted: modules[index] == 'food',
+                    onTap: () {
+                      _openRestaurants(moduleId: modules[index]);
+                    },
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+      const SliverToBoxAdapter(child: SizedBox(height: 22)),
+    ];
+  }
+
+  List<Widget> _buildPromoSlivers(HomeConfig config) {
+    if (!config.promoBanner.enabled) {
+      return [];
+    }
+
+    return [
+      SliverToBoxAdapter(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: PromoBanner(
+            title: config.promoBanner.title,
+            subtitle: config.promoBanner.subtitle,
+            imageUrl: config.promoBanner.imageUrl,
+            onTap: () => _onPromoTap(config),
+          ),
+        ),
+      ),
+      const SliverToBoxAdapter(child: SizedBox(height: 28)),
+    ];
+  }
+
+  List<Widget> _buildCategorySlivers() {
+    if (_searchQuery.isNotEmpty || _homeCategories.isEmpty) {
+      return [];
+    }
+
+    return [
+      SliverToBoxAdapter(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SectionHeader(title: 'Categories'),
+              const SizedBox(height: 14),
+              SizedBox(
+                height: 112,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: _homeCategories.length,
+                  separatorBuilder: (_, _) => const SizedBox(width: 6),
+                  itemBuilder: (context, index) {
+                    final category = _homeCategories[index];
+                    final moduleId = category['moduleId']?.toString() ?? 'food';
+
+                    return HomeCategoryItem(
+                      category: category,
+                      onTap: () {
+                        final name = category['name']?.toString() ?? '';
+                        _openRestaurants(moduleId: moduleId, category: name);
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+      const SliverToBoxAdapter(child: SizedBox(height: 28)),
+    ];
+  }
+
+  List<Widget> _buildNearbySlivers(HomeConfig config) {
+    final branding = AppBrandingController.instance.branding;
+    final stores = _filteredStores;
+    final title = _searchQuery.isEmpty ? 'Nearby Stores' : 'Search Results';
+
+    final heading = SliverToBoxAdapter(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+        child: SectionHeader(
+          title: title,
+          actionText: _searchQuery.isEmpty ? 'See all' : null,
+          onAction: _searchQuery.isEmpty ? _openRestaurants : null,
+        ),
+      ),
+    );
+
+    if (_isLoadingStores) {
+      return [
+        heading,
+        const SliverToBoxAdapter(
+          child: Padding(
+            padding: EdgeInsets.all(40),
+            child: Center(child: CircularProgressIndicator()),
+          ),
+        ),
+      ];
+    }
+
+    if (_storesError != null) {
+      return [
+        heading,
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              children: [
+                const Icon(Icons.cloud_off_outlined, size: 48),
+                const SizedBox(height: 12),
+                Text(_storesError!, textAlign: TextAlign.center),
+                const SizedBox(height: 14),
+                FilledButton(
+                  onPressed: _loadStores,
+                  child: const Text('Retry'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ];
+    }
+
+    if (_selectedZoneId == null || _selectedZoneId!.isEmpty) {
+      return [
+        heading,
+        SliverToBoxAdapter(
+          child: _EmptyState(
+            icon: Icons.location_on_outlined,
+            title: 'Choose your delivery location',
+            message: 'Select an address to see stores available near you.',
+            buttonText: 'Select location',
+            onPressed: _chooseLocation,
+          ),
+        ),
+      ];
+    }
+
+    if (stores.isEmpty) {
+      return [
+        heading,
+        SliverToBoxAdapter(
+          child: _EmptyState(
+            icon: _searchQuery.isEmpty
+                ? Icons.storefront_outlined
+                : Icons.search_off,
+            title: _searchQuery.isEmpty
+                ? 'No stores available'
+                : 'No results found',
+            message: _searchQuery.isEmpty
+                ? 'There are currently no stores available in your area.'
+                : 'Try searching with a different store name.',
+          ),
+        ),
+      ];
+    }
+
+    return [
+      heading,
+      SliverPadding(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        sliver: SliverList(
+          delegate: SliverChildBuilderDelegate((context, index) {
+            final store = stores[index];
+            return StoreCard(
+              store: store,
+              currencySymbol: branding.currencySymbol,
+              onTap: () => _openStore(store),
+            );
+          }, childCount: stores.length),
+        ),
+      ),
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
     final branding = AppBrandingController.instance.branding;
+    final homeConfig = HomeConfigController.instance.config;
+    final orderedSections =
+        homeConfig.sections.where((section) => section.enabled).toList()
+          ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
 
-    final stores = _filteredStores;
+    final slivers = <Widget>[
+      _buildHeaderSliver(branding),
+      for (final section in orderedSections)
+        ..._buildSectionSlivers(section.id, homeConfig),
+      const SliverToBoxAdapter(child: SizedBox(height: 110)),
+    ];
 
     return Scaffold(
       body: SafeArea(
@@ -344,208 +657,7 @@ class _HomePageState extends State<HomePage> {
           onRefresh: _loadSavedAddress,
           child: CustomScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
-            slivers: [
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      HomeHeader(
-                        address: _selectedAddress,
-                        loadingAddress: _isLoadingAddress,
-                        onLocationTap: _chooseLocation,
-                        onNotificationTap: () {
-                          _showMessage('No new notifications.');
-                        },
-                        onLogoutTap: _logout,
-                      ),
-
-                      const SizedBox(height: 22),
-
-                      Text(
-                        branding.appName,
-                        style: Theme.of(context).textTheme.headlineSmall
-                            ?.copyWith(fontWeight: FontWeight.bold),
-                      ),
-
-                      const SizedBox(height: 4),
-
-                      Text(
-                        branding.tagline,
-                        style: TextStyle(color: Colors.grey[700]),
-                      ),
-
-                      const SizedBox(height: 20),
-
-                      HomeSearchBar(
-                        controller: _searchController,
-                        onChanged: _onSearchChanged,
-                      ),
-
-                      const SizedBox(height: 22),
-
-                      Row(
-                        children: [
-                          Expanded(
-                            child: ModuleCard(
-                              title: 'Food',
-                              subtitle: 'Restaurants & meals',
-                              icon: Icons.restaurant,
-                              highlighted: true,
-                              onTap: () {
-                                _openRestaurants(moduleId: 'food');
-                              },
-                            ),
-                          ),
-
-                          const SizedBox(width: 12),
-
-                          Expanded(
-                            child: ModuleCard(
-                              title: 'Grocery',
-                              subtitle: 'Daily essentials',
-                              icon: Icons.shopping_basket,
-                              highlighted: false,
-                              onTap: () {
-                                _openRestaurants(moduleId: 'grocery');
-                              },
-                            ),
-                          ),
-                        ],
-                      ),
-
-                      const SizedBox(height: 22),
-
-                      const PromoBanner(),
-
-                      if (_searchQuery.isEmpty &&
-                          _homeCategories.isNotEmpty) ...[
-                        const SizedBox(height: 28),
-
-                        const SectionHeader(title: 'Categories'),
-
-                        const SizedBox(height: 14),
-
-                        SizedBox(
-                          height: 112,
-                          child: ListView.separated(
-                            scrollDirection: Axis.horizontal,
-                            itemCount: _homeCategories.length,
-                            separatorBuilder: (_, _) =>
-                                const SizedBox(width: 6),
-                            itemBuilder: (context, index) {
-                              final category = _homeCategories[index];
-                              final moduleId =
-                                  category['moduleId']?.toString() ?? 'food';
-
-                              return HomeCategoryItem(
-                                category: category,
-                                onTap: () {
-                                  final name =
-                                      category['name']?.toString() ?? '';
-
-                                  _openRestaurants(
-                                    moduleId: moduleId,
-                                    category: name,
-                                  );
-                                },
-                              );
-                            },
-                          ),
-                        ),
-                      ],
-
-                      const SizedBox(height: 28),
-
-                      SectionHeader(
-                        title: _searchQuery.isEmpty
-                            ? 'Nearby Stores'
-                            : 'Search Results',
-                        actionText: _searchQuery.isEmpty ? 'See all' : null,
-                        onAction: _searchQuery.isEmpty
-                            ? () {
-                                _openRestaurants();
-                              }
-                            : null,
-                      ),
-
-                      const SizedBox(height: 12),
-                    ],
-                  ),
-                ),
-              ),
-
-              if (_isLoadingStores)
-                const SliverToBoxAdapter(
-                  child: Padding(
-                    padding: EdgeInsets.all(40),
-                    child: Center(child: CircularProgressIndicator()),
-                  ),
-                )
-              else if (_storesError != null)
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      children: [
-                        const Icon(Icons.cloud_off_outlined, size: 48),
-                        const SizedBox(height: 12),
-                        Text(_storesError!, textAlign: TextAlign.center),
-                        const SizedBox(height: 14),
-                        FilledButton(
-                          onPressed: _loadStores,
-                          child: const Text('Retry'),
-                        ),
-                      ],
-                    ),
-                  ),
-                )
-              else if (_selectedZoneId == null)
-                SliverToBoxAdapter(
-                  child: _EmptyState(
-                    icon: Icons.location_on_outlined,
-                    title: 'Choose your delivery location',
-                    message:
-                        'Select an address to see stores available near you.',
-                    buttonText: 'Select location',
-                    onPressed: _chooseLocation,
-                  ),
-                )
-              else if (stores.isEmpty)
-                SliverToBoxAdapter(
-                  child: _EmptyState(
-                    icon: _searchQuery.isEmpty
-                        ? Icons.storefront_outlined
-                        : Icons.search_off,
-                    title: _searchQuery.isEmpty
-                        ? 'No stores available'
-                        : 'No results found',
-                    message: _searchQuery.isEmpty
-                        ? 'There are currently no stores available in your area.'
-                        : 'Try searching with a different store name.',
-                  ),
-                )
-              else
-                SliverPadding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  sliver: SliverList(
-                    delegate: SliverChildBuilderDelegate((context, index) {
-                      final store = stores[index];
-
-                      return StoreCard(
-                        store: store,
-                        currencySymbol: branding.currencySymbol,
-                        onTap: () {
-                          _openStore(store);
-                        },
-                      );
-                    }, childCount: stores.length),
-                  ),
-                ),
-
-              const SliverToBoxAdapter(child: SizedBox(height: 110)),
-            ],
+            slivers: slivers,
           ),
         ),
       ),

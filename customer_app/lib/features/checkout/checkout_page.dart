@@ -43,20 +43,11 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
 
     _razorpay = Razorpay();
 
-    _razorpay.on(
-      Razorpay.EVENT_PAYMENT_SUCCESS,
-      _handlePaymentSuccess,
-    );
+    _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, _handlePaymentSuccess);
 
-    _razorpay.on(
-      Razorpay.EVENT_PAYMENT_ERROR,
-      _handlePaymentError,
-    );
+    _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR, _handlePaymentError);
 
-    _razorpay.on(
-      Razorpay.EVENT_EXTERNAL_WALLET,
-      _handleExternalWallet,
-    );
+    _razorpay.on(Razorpay.EVENT_EXTERNAL_WALLET, _handleExternalWallet);
   }
 
   @override
@@ -94,9 +85,8 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     final cart = ref.read(cartProvider.notifier);
 
     if (cartState.items.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Your cart is empty')),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Your cart is empty')));
 
       return;
     }
@@ -117,20 +107,14 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
 
     if (selectedAddress.id.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select a delivery address.'),
-        ),
+        const SnackBar(content: Text('Please select a delivery address.')),
       );
 
       return;
     }
 
     if (paymentMethod == 'Cash on Delivery') {
-      await _placeCodOrder(
-        storeId: storeId,
-        cartState: cartState,
-        cart: cart,
-      );
+      await _placeCodOrder(storeId: storeId, cartState: cartState, cart: cart);
 
       return;
     }
@@ -197,13 +181,9 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
         return;
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Failed to place order: $error',
-          ),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to place order: $error')));
     } finally {
       if (mounted) {
         setState(() {
@@ -225,15 +205,11 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     try {
       final paymentItems = cartState.items
           .map<Map<String, dynamic>>(
-            (item) => {
-              'id': item.id,
-              'quantity': item.quantity,
-            },
+            (item) => {'id': item.id, 'quantity': item.quantity},
           )
           .toList();
 
-      final response =
-          await _paymentsApiService.createRazorpayOrder(
+      final response = await _paymentsApiService.createRazorpayOrder(
         storeId: storeId,
         addressId: selectedAddress.id,
         items: paymentItems,
@@ -241,8 +217,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
 
       final paymentId = response['paymentId'] as String?;
 
-      final razorpayOrderId =
-          response['razorpayOrderId'] as String?;
+      final razorpayOrderId = response['razorpayOrderId'] as String?;
 
       final keyId = response['keyId'] as String?;
 
@@ -259,9 +234,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
           keyId == null ||
           keyId.isEmpty ||
           amount is! num) {
-        throw Exception(
-          'Invalid payment order response',
-        );
+        throw Exception('Invalid payment order response');
       }
 
       _pendingPaymentId = paymentId;
@@ -287,14 +260,9 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
 
         'description': 'Order Payment',
 
-        'retry': {
-          'enabled': true,
-          'max_count': 1,
-        },
+        'retry': {'enabled': true, 'max_count': 1},
 
-        'theme': {
-          'color': '#FF5722',
-        },
+        'theme': {'color': '#FF5722'},
       };
 
       debugPrint(
@@ -304,9 +272,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
 
       _razorpay.open(options);
     } catch (error, stackTrace) {
-      debugPrint(
-        'Failed to start Razorpay payment: $error',
-      );
+      debugPrint('Failed to start Razorpay payment: $error');
 
       debugPrintStack(stackTrace: stackTrace);
 
@@ -321,22 +287,15 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Unable to start payment: $error',
-          ),
-        ),
+        SnackBar(content: Text('Unable to start payment: $error')),
       );
     }
   }
 
-  Future<void> _handlePaymentSuccess(
-    PaymentSuccessResponse response,
-  ) async {
+  Future<void> _handlePaymentSuccess(PaymentSuccessResponse response) async {
     final paymentId = _pendingPaymentId;
 
-    final expectedRazorpayOrderId =
-        _pendingRazorpayOrderId;
+    final expectedRazorpayOrderId = _pendingRazorpayOrderId;
 
     final razorpayPaymentId = response.paymentId;
 
@@ -382,9 +341,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
-            'Payment order mismatch. Please contact support.',
-          ),
+          content: Text('Payment order mismatch. Please contact support.'),
         ),
       );
 
@@ -392,17 +349,14 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     }
 
     try {
-      final result =
-          await _paymentsApiService.verifyRazorpayPayment(
+      final result = await _paymentsApiService.verifyRazorpayPayment(
         paymentId: paymentId,
         razorpayOrderId: razorpayOrderId,
         razorpayPaymentId: razorpayPaymentId,
         razorpaySignature: signature,
       );
 
-      debugPrint(
-        'Payment verified successfully: $result',
-      );
+      debugPrint('Payment verified successfully: $result');
 
       if (!mounted) {
         return;
@@ -420,16 +374,12 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
 
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
-          builder: (_) => OrderSuccessPage(
-            total: total,
-            paymentMethod: 'Online Payment',
-          ),
+          builder: (_) =>
+              OrderSuccessPage(total: total, paymentMethod: 'Online Payment'),
         ),
       );
     } catch (error, stackTrace) {
-      debugPrint(
-        'Payment verification failed: $error',
-      );
+      debugPrint('Payment verification failed: $error');
 
       debugPrintStack(stackTrace: stackTrace);
 
@@ -442,18 +392,12 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Payment verification failed: $error',
-          ),
-        ),
+        SnackBar(content: Text('Payment verification failed: $error')),
       );
     }
   }
 
-  void _handlePaymentError(
-    PaymentFailureResponse response,
-  ) {
+  void _handlePaymentError(PaymentFailureResponse response) {
     debugPrint(
       'Razorpay payment failed '
       'code=${response.code} '
@@ -470,22 +414,16 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       _placingOrder = false;
     });
 
-    final message =
-        response.code == Razorpay.PAYMENT_CANCELLED
-            ? 'Payment cancelled'
-            : response.message ?? 'Payment failed';
+    final message = response.code == Razorpay.PAYMENT_CANCELLED
+        ? 'Payment cancelled'
+        : response.message ?? 'Payment failed';
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 
-  void _handleExternalWallet(
-    ExternalWalletResponse response,
-  ) {
-    debugPrint(
-      'External wallet selected: ${response.walletName}',
-    );
+  void _handleExternalWallet(ExternalWalletResponse response) {
+    debugPrint('External wallet selected: ${response.walletName}');
   }
 
   void _clearPendingPayment() {
@@ -510,8 +448,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
           _SectionTitle(
             title: 'Delivery Address',
             action: TextButton(
-              onPressed:
-                  _placingOrder ? null : _changeAddress,
+              onPressed: _placingOrder ? null : _changeAddress,
               child: const Text('Change'),
             ),
           ),
@@ -523,15 +460,12 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
               contentPadding: const EdgeInsets.all(16),
               leading: Icon(
                 _getAddressIcon(selectedAddress.label),
-                color:
-                    Theme.of(context).colorScheme.primary,
+                color: Theme.of(context).colorScheme.primary,
                 size: 30,
               ),
               title: Text(
                 selectedAddress.label,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                ),
+                style: const TextStyle(fontWeight: FontWeight.bold),
               ),
               subtitle: Padding(
                 padding: const EdgeInsets.only(top: 6),
@@ -542,9 +476,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
 
           const SizedBox(height: 24),
 
-          const _SectionTitle(
-            title: 'Order Summary',
-          ),
+          const _SectionTitle(title: 'Order Summary'),
 
           const SizedBox(height: 8),
 
@@ -555,21 +487,15 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                 children: [
                   ...items.map(
                     (item) => Padding(
-                      padding: const EdgeInsets.only(
-                        bottom: 12,
-                      ),
+                      padding: const EdgeInsets.only(bottom: 12),
                       child: Row(
                         children: [
                           Expanded(
-                            child: Text(
-                              '${item.name} × ${item.quantity}',
-                            ),
+                            child: Text('${item.name} × ${item.quantity}'),
                           ),
                           Text(
                             '₹${item.price * item.quantity}',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w600,
-                            ),
+                            style: const TextStyle(fontWeight: FontWeight.w600),
                           ),
                         ],
                       ),
@@ -578,10 +504,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
 
                   const Divider(height: 20),
 
-                  _SummaryRow(
-                    label: 'Subtotal',
-                    value: '₹${cart.subtotal}',
-                  ),
+                  _SummaryRow(label: 'Subtotal', value: '₹${cart.subtotal}'),
 
                   const SizedBox(height: 8),
 
@@ -604,9 +527,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
 
           const SizedBox(height: 24),
 
-          const _SectionTitle(
-            title: 'Payment Method',
-          ),
+          const _SectionTitle(title: 'Payment Method'),
 
           const SizedBox(height: 8),
 
@@ -626,25 +547,15 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                 children: [
                   RadioListTile<String>(
                     value: 'Cash on Delivery',
-                    title: Text(
-                      'Cash on Delivery',
-                    ),
-                    subtitle: Text(
-                      'Pay when your order arrives',
-                    ),
-                    secondary:
-                        Icon(Icons.money_outlined),
+                    title: Text('Cash on Delivery'),
+                    subtitle: Text('Pay when your order arrives'),
+                    secondary: Icon(Icons.money_outlined),
                   ),
                   RadioListTile<String>(
                     value: 'Online Payment',
-                    title: Text(
-                      'Online Payment',
-                    ),
-                    subtitle: Text(
-                      'UPI, Card, Net Banking',
-                    ),
-                    secondary:
-                        Icon(Icons.payment_outlined),
+                    title: Text('Online Payment'),
+                    subtitle: Text('UPI, Card, Net Banking'),
+                    secondary: Icon(Icons.payment_outlined),
                   ),
                 ],
               ),
@@ -661,21 +572,15 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
             width: double.infinity,
             height: 52,
             child: FilledButton(
-              onPressed:
-                  items.isEmpty || _placingOrder
-                      ? null
-                      : _placeOrder,
+              onPressed: items.isEmpty || _placingOrder ? null : _placeOrder,
               child: _placingOrder
                   ? const SizedBox(
                       width: 22,
                       height: 22,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                      ),
+                      child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   : Text(
-                      paymentMethod ==
-                              'Online Payment'
+                      paymentMethod == 'Online Payment'
                           ? 'Pay • ₹${cart.total}'
                           : 'Place Order • ₹${cart.total}',
                     ),
@@ -701,10 +606,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
 }
 
 class _SectionTitle extends StatelessWidget {
-  const _SectionTitle({
-    required this.title,
-    this.action,
-  });
+  const _SectionTitle({required this.title, this.action});
 
   final String title;
   final Widget? action;
@@ -712,17 +614,12 @@ class _SectionTitle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(
-      mainAxisAlignment:
-          MainAxisAlignment.spaceBetween,
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(
           title,
-          style: Theme.of(context)
-              .textTheme
-              .titleLarge
-              ?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+          style: Theme.of(context).textTheme.titleLarge
+              ?.copyWith(fontWeight: FontWeight.bold),
         ),
         ?action,
       ],
@@ -744,14 +641,12 @@ class _SummaryRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final style = TextStyle(
-      fontWeight:
-          bold ? FontWeight.bold : FontWeight.normal,
+      fontWeight: bold ? FontWeight.bold : FontWeight.normal,
       fontSize: bold ? 18 : 15,
     );
 
     return Row(
-      mainAxisAlignment:
-          MainAxisAlignment.spaceBetween,
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(label, style: style),
         Text(value, style: style),
