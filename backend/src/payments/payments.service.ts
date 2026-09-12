@@ -62,10 +62,6 @@ export class PaymentsService {
 
     this.razorpayKeyId = keyId;
 
-    console.log('Razorpay test key loaded:', keyId.startsWith('rzp_test_'));
-
-    console.log('Razorpay secret loaded:', keySecret.length > 0);
-
     this.razorpay = new Razorpay({
       key_id: keyId,
       key_secret: keySecret,
