@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 
 import { FirebaseService } from '../firebase/firebase.service.js';
+import { assertOwnedFirebaseImageUrl } from '../uploads/image-url.util.js';
 
 export interface CreateProductRequest {
   name: string;
@@ -161,6 +162,16 @@ export class ProductsService {
       new Date().toISOString();
 
     const stock = data.stock ?? 0;
+    const normalizedImageUrl = data.imageUrl?.trim() || null;
+
+    if (normalizedImageUrl) {
+      assertOwnedFirebaseImageUrl(
+        normalizedImageUrl,
+        this.firebaseService.getStorage().bucket().name,
+        'products',
+        merchantId,
+      );
+    }
 
     const product: ProductDocument = {
       id: productRef.id,
@@ -173,8 +184,7 @@ export class ProductsService {
         data.description?.trim() ?? '',
       price: data.price,
       stock,
-      imageUrl:
-        data.imageUrl?.trim() || null,
+      imageUrl: normalizedImageUrl,
       isAvailable: stock > 0,
       createdAt: now,
       updatedAt: now,
@@ -333,8 +343,18 @@ export class ProductsService {
     }
 
     if (data.imageUrl !== undefined) {
-      updates.imageUrl =
-        data.imageUrl?.trim() || null;
+      const normalizedImageUrl = data.imageUrl?.trim() || null;
+
+      if (normalizedImageUrl) {
+        assertOwnedFirebaseImageUrl(
+          normalizedImageUrl,
+          this.firebaseService.getStorage().bucket().name,
+          'products',
+          merchantId,
+        );
+      }
+
+      updates.imageUrl = normalizedImageUrl;
     }
 
     await productRef.update(updates);

@@ -11,10 +11,13 @@ import {
 } from '@nestjs/common';
 
 import { AuthGuard } from '../auth/auth.guard.js';
+import { Roles } from '../auth/roles.decorator.js';
+import { RolesGuard } from '../auth/roles.guard.js';
 import { AddressesService } from './addresses.service.js';
 
 @Controller('addresses')
-@UseGuards(AuthGuard)
+@UseGuards(AuthGuard, RolesGuard)
+@Roles('CUSTOMER')
 export class AddressesController {
   constructor(
     private readonly addressesService: AddressesService,

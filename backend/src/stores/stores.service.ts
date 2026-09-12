@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 
 import { FirebaseService } from '../firebase/firebase.service.js';
+import { assertOwnedFirebaseImageUrl } from '../uploads/image-url.util.js';
 
 export interface CreateStoreRequest {
   name: string;
@@ -171,6 +172,12 @@ export class StoresService {
 
     const storeDoc = snapshot.docs[0];
     const normalizedImageUrl = imageUrl.trim();
+    assertOwnedFirebaseImageUrl(
+      normalizedImageUrl,
+      this.firebaseService.getStorage().bucket().name,
+      'stores',
+      merchantId,
+    );
     const updatedAt = new Date().toISOString();
 
     await storeDoc.ref.update({

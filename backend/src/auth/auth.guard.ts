@@ -16,10 +16,7 @@ export class AuthGuard implements CanActivate {
   async canActivate(
     context: ExecutionContext,
   ): Promise<boolean> {
-    console.log('=== AUTH GUARD CALLED ===');
     const request = context.switchToHttp().getRequest();
-    console.log('authorization:', request.headers.authorization);
-
     const authorization = request.headers.authorization;
 
     if (!authorization?.startsWith('Bearer ')) {
@@ -34,8 +31,6 @@ export class AuthGuard implements CanActivate {
       await this.authService.verifyToken(token);
 
     request.user = decodedToken;
-
-    console.log('decodedToken:', decodedToken);
 
     return true;
   }

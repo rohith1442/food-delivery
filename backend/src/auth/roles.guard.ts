@@ -27,9 +27,6 @@ export class RolesGuard implements CanActivate {
       ROLES_KEY,
       [context.getHandler(), context.getClass()],
     );
-        console.log('requiredRoles:', requiredRoles);
-
-    console.log('=== ROLES GUARD CALLED ===');
 
     if (!requiredRoles || requiredRoles.length === 0) {
       return true;
@@ -38,7 +35,6 @@ export class RolesGuard implements CanActivate {
     const request = context.switchToHttp().getRequest();
 
     const uid = request.user?.uid;
-      console.log('uid:', request.user?.uid);
 
     if (!uid) {
       throw new ForbiddenException('Authenticated user is required');
@@ -48,10 +44,7 @@ export class RolesGuard implements CanActivate {
       uid,
     )) as UserDocument | null;
 
-        console.log('userProfile:', user);
-
     if (!user) {
-      console.log('User profile not found for uid:', uid);
       throw new ForbiddenException('User profile not found');
     }
 
@@ -74,11 +67,6 @@ export class RolesGuard implements CanActivate {
     }
 
   
-
-
-
-  
-
     request.user.role = role;
 
     request.user.status = status;

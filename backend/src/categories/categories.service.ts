@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 
 import { FirebaseService } from '../firebase/firebase.service.js';
+import { assertOwnedFirebaseImageUrl } from '../uploads/image-url.util.js';
 
 export interface CreateCategoryRequest {
   name: string;
@@ -204,13 +205,37 @@ export class CategoriesService {
     };
 
     if (data.name !== undefined) {
-      if (!data.name.trim()) {
+      const normalizedName = data.name.trim();
+
+      if (!normalizedName) {
         throw new BadRequestException(
           'Category name cannot be empty',
         );
       }
 
-      updates.name = data.name.trim();
+      const categoriesSnapshot = await db
+        .collection('categories')
+        .where('storeId', '==', category.storeId)
+        .get();
+
+      const duplicate = categoriesSnapshot.docs.some((doc) => {
+        if (doc.id === categoryId) {
+          return false;
+        }
+
+        const existing = doc.data();
+
+        return (
+          existing.name?.toString().trim().toLowerCase() ===
+          normalizedName.toLowerCase()
+        );
+      });
+
+      if (duplicate) {
+        throw new BadRequestException('Category already exists');
+      }
+
+      updates.name = normalizedName;
     }
 
     if (data.sortOrder !== undefined) {
@@ -242,6 +267,13 @@ export class CategoriesService {
         'Category image URL is required',
       );
     }
+
+    assertOwnedFirebaseImageUrl(
+      normalizedImageUrl,
+      this.firebaseService.getStorage().bucket().name,
+      'categories',
+      merchantId,
+    );
 
     const db = this.firebaseService.getFirestore();
 

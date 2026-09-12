@@ -48,7 +48,7 @@ export interface CreateOrderRequest {
   total?: number;
 }
 
-interface OrderDeliveryAddress {
+export interface OrderDeliveryAddress {
   addressId: string;
   label: string;
   address: string;
@@ -137,7 +137,7 @@ interface AddressDocument {
   updatedAt: string;
 }
 
-interface OrderStoreLocation {
+export interface OrderStoreLocation {
   latitude: number;
   longitude: number;
 }
@@ -1437,6 +1437,42 @@ export class OrdersService {
     };
   }
 
+  private buildDeliveryOrderResponse(
+    order: OrderDocument,
+    riderId: string,
+  ) {
+    const {
+      customerId: _customerId,
+      paymentId: _paymentId,
+      providerPaymentId: _providerPaymentId,
+      deliveryOtp: _deliveryOtp,
+      deliveryOtpCreatedAt: _deliveryOtpCreatedAt,
+      ...safeOrder
+    } = order;
+
+    const isAssignedToRider = order.riderId === riderId;
+
+    return {
+      ...safeOrder,
+      deliveryAddress: isAssignedToRider
+        ? {
+            label: order.deliveryAddress.label,
+            address: order.deliveryAddress.address,
+            latitude: order.deliveryAddress.latitude,
+            longitude: order.deliveryAddress.longitude,
+            zoneId: order.deliveryAddress.zoneId,
+          }
+        : {
+            label: 'Delivery area',
+            address:
+              'Exact delivery address will be visible after accepting the order',
+            latitude: null,
+            longitude: null,
+            zoneId: order.deliveryAddress.zoneId,
+          },
+    };
+  }
+
   async getDeliveryOrders(riderId: string) {
     const db = this.firebaseService.getFirestore();
 
@@ -1512,7 +1548,9 @@ export class OrdersService {
 
     return {
       success: true,
-      orders,
+      orders: orders.map((order) =>
+        this.buildDeliveryOrderResponse(order, riderId),
+      ),
     };
   }
 
