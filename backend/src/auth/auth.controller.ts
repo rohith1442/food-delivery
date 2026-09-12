@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   Headers,
+  Patch,
   Post,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -79,6 +80,23 @@ export class AuthController {
             body.businessName,
         },
       );
+  }
+
+  @Patch('profile')
+  async updateProfile(
+    @Headers('authorization')
+    authorization: string | undefined,
+
+    @Body()
+    body: {
+      name?: string;
+    },
+  ) {
+    const decodedToken = await this.getDecodedToken(authorization);
+
+    return this.authService.updateCustomerProfile(decodedToken.uid, {
+      name: body.name,
+    });
   }
 
   @Post('register/customer')

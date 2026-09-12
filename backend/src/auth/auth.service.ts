@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 
@@ -131,6 +132,58 @@ export class AuthService {
     ...user,
   };
 }
+
+  async updateCustomerProfile(
+    uid: string,
+    data: {
+      name?: string;
+    },
+  ) {
+    const db = this.firebaseService.getFirestore();
+    const userRef = db.collection('users').doc(uid);
+    const snapshot = await userRef.get();
+
+    if (!snapshot.exists) {
+      throw new NotFoundException('User profile not found');
+    }
+
+    const user = snapshot.data();
+
+    if (user?.role !== 'CUSTOMER') {
+      throw new BadRequestException(
+        'Only customer profiles can be updated',
+      );
+    }
+
+    const name = data.name?.trim();
+
+    if (!name) {
+      throw new BadRequestException('Name is required');
+    }
+
+    if (name.length > 80) {
+      throw new BadRequestException(
+        'Name must not exceed 80 characters',
+      );
+    }
+
+    const updatedAt = new Date().toISOString();
+
+    await userRef.update({
+      name,
+      updatedAt,
+    });
+
+    return {
+      success: true,
+      user: {
+        id: snapshot.id,
+        ...user,
+        name,
+        updatedAt,
+      },
+    };
+  }
 
   async registerMerchant(
     uid: string,

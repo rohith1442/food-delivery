@@ -164,6 +164,11 @@ class _ProfilePageState extends State<ProfilePage> {
                       ],
                     ),
                   ),
+                  IconButton(
+                    tooltip: 'Edit profile',
+                    icon: const Icon(Icons.edit_outlined),
+                    onPressed: () => _showEditProfile(name),
+                  ),
                 ],
               ),
             ),
@@ -204,6 +209,82 @@ class _ProfilePageState extends State<ProfilePage> {
         ),
       ),
     );
+  }
+
+  Future<void> _showEditProfile(String currentName) async {
+    var nameValue = currentName;
+
+    final updatedName = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Edit Profile'),
+          content: TextFormField(
+            initialValue: currentName,
+            autofocus: true,
+            maxLength: 80,
+            textCapitalization: TextCapitalization.words,
+            decoration: const InputDecoration(
+              labelText: 'Name',
+              border: OutlineInputBorder(),
+            ),
+            onChanged: (value) {
+              nameValue = value;
+            },
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+              },
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () {
+                final name = nameValue.trim();
+
+                if (name.isEmpty) {
+                  return;
+                }
+
+                Navigator.of(dialogContext).pop(name);
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (!mounted || updatedName == null || updatedName == currentName) {
+      return;
+    }
+
+    try {
+      await _authApiService.updateProfile(name: updatedName);
+
+      if (!mounted) {
+        return;
+      }
+
+      await _loadProfile();
+
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Profile updated successfully')),
+      );
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Unable to update profile')));
+    }
   }
 
   String _initials(String name) {

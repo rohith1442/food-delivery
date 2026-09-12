@@ -12,6 +12,15 @@ class AuthApiService {
     return Map<String, dynamic>.from(response.data as Map);
   }
 
+  Future<Map<String, dynamic>> updateProfile({required String name}) async {
+    final response = await _apiClient.patch(
+      '/auth/profile',
+      data: {'name': name.trim()},
+    );
+
+    return Map<String, dynamic>.from(response.data as Map);
+  }
+
   Future<Map<String, dynamic>> registerCustomer({String? name}) async {
     final response = await _apiClient.post(
       '/auth/register/customer',
