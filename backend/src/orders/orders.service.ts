@@ -5,6 +5,12 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import {
+  createHmac,
+  randomInt,
+  timingSafeEqual,
+} from 'node:crypto';
 
 import { FirebaseService } from '../firebase/firebase.service.js';
 import { RazorpayRefundService } from '../payments/razorpay-refund.service.js';
@@ -92,8 +98,16 @@ export interface OrderDocument {
   createdAt: string;
   updatedAt: string;
 
+  /**
+   * Kept only for compatibility with legacy orders.
+   * New OTPs must never be stored in plaintext.
+   */
   deliveryOtp?: string | null;
+  deliveryOtpHash?: string | null;
   deliveryOtpCreatedAt?: string | null;
+  deliveryOtpExpiresAt?: string | null;
+  deliveryOtpAttempts?: number | null;
+  deliveryOtpLockedUntil?: string | null;
 }
 
 interface StoreDocument {
@@ -146,10 +160,21 @@ export interface OrderStoreLocation {
 export class OrdersService {
   private readonly logger = new Logger(OrdersService.name);
 
+  private static readonly DELIVERY_OTP_LENGTH = 4;
+
+  private static readonly DELIVERY_OTP_EXPIRY_MS =
+    10 * 60 * 1000;
+
+  private static readonly DELIVERY_OTP_MAX_ATTEMPTS = 5;
+
+  private static readonly DELIVERY_OTP_LOCK_MS =
+    10 * 60 * 1000;
+
   constructor(
     private readonly firebaseService: FirebaseService,
     private readonly razorpayRefundService: RazorpayRefundService,
     private readonly notificationsService: NotificationsService,
+    private readonly configService: ConfigService,
   ) {}
 
   // --------------------------------------------------
@@ -489,7 +514,11 @@ export class OrdersService {
           updatedAt: now,
 
           deliveryOtp: null,
+          deliveryOtpHash: null,
           deliveryOtpCreatedAt: null,
+          deliveryOtpExpiresAt: null,
+          deliveryOtpAttempts: 0,
+          deliveryOtpLockedUntil: null,
         };
 
         // --------------------------------------------
@@ -1446,7 +1475,11 @@ export class OrdersService {
       paymentId: _paymentId,
       providerPaymentId: _providerPaymentId,
       deliveryOtp: _deliveryOtp,
+      deliveryOtpHash: _deliveryOtpHash,
       deliveryOtpCreatedAt: _deliveryOtpCreatedAt,
+      deliveryOtpExpiresAt: _deliveryOtpExpiresAt,
+      deliveryOtpAttempts: _deliveryOtpAttempts,
+      deliveryOtpLockedUntil: _deliveryOtpLockedUntil,
       ...safeOrder
     } = order;
 
@@ -1750,121 +1783,297 @@ export class OrdersService {
     };
   }
 
+  private getDeliveryOtpSecret(): string {
+    const secret = this.configService.get<string>('DELIVERY_OTP_SECRET');
+
+    if (!secret?.trim()) {
+      throw new Error('DELIVERY_OTP_SECRET configuration is missing');
+    }
+
+    return secret;
+  }
+
+  private hashDeliveryOtp(orderId: string, otp: string): string {
+    return createHmac('sha256', this.getDeliveryOtpSecret())
+      .update(`${orderId}:${otp}`)
+      .digest('hex');
+  }
+
+  private isDeliveryOtpMatch(
+    orderId: string,
+    otp: string,
+    storedHash: string,
+  ): boolean {
+    const suppliedBuffer = Buffer.from(
+      this.hashDeliveryOtp(orderId, otp),
+      'hex',
+    );
+    const storedBuffer = Buffer.from(storedHash, 'hex');
+
+    if (suppliedBuffer.length !== storedBuffer.length) {
+      return false;
+    }
+
+    return timingSafeEqual(suppliedBuffer, storedBuffer);
+  }
+
   async generateDeliveryOtp(orderId: string, riderId: string) {
     const db = this.firebaseService.getFirestore();
-
     const orderRef = db.collection('orders').doc(orderId);
 
-    const snapshot = await orderRef.get();
+    const otp = randomInt(
+      10 ** (OrdersService.DELIVERY_OTP_LENGTH - 1),
+      10 ** OrdersService.DELIVERY_OTP_LENGTH,
+    ).toString();
+    const otpHash = this.hashDeliveryOtp(orderId, otp);
+    const now = new Date();
+    const deliveryOtpCreatedAt = now.toISOString();
+    const deliveryOtpExpiresAt = new Date(
+      now.getTime() + OrdersService.DELIVERY_OTP_EXPIRY_MS,
+    ).toISOString();
 
-    if (!snapshot.exists) {
-      throw new NotFoundException('Order not found');
-    }
+    await db.runTransaction(async (transaction) => {
+      const snapshot = await transaction.get(orderRef);
 
-    const order = snapshot.data() as OrderDocument;
+      if (!snapshot.exists) {
+        throw new NotFoundException('Order not found');
+      }
 
-    if (order.riderId !== riderId) {
-      throw new BadRequestException('Order is not assigned to this rider');
-    }
+      const order = {
+        id: snapshot.id,
+        ...snapshot.data(),
+      } as OrderDocument;
 
-    if (order.status !== 'ON_THE_WAY') {
-      throw new BadRequestException(
-        'Delivery OTP can only be generated when order is on the way',
-      );
-    }
+      if (order.riderId !== riderId) {
+        throw new ForbiddenException('This order is not assigned to you');
+      }
 
-    const otp = Math.floor(1000 + Math.random() * 9000).toString();
+      if (order.status !== 'ON_THE_WAY') {
+        throw new BadRequestException(
+          'Delivery OTP can only be generated when order is on the way',
+        );
+      }
 
-    const deliveryOtpCreatedAt = new Date().toISOString();
+      const lockedUntilMs = order.deliveryOtpLockedUntil
+        ? Date.parse(order.deliveryOtpLockedUntil)
+        : 0;
 
-    await orderRef.update({
-      deliveryOtp: otp,
-      deliveryOtpCreatedAt,
-      updatedAt: deliveryOtpCreatedAt,
+      if (Number.isFinite(lockedUntilMs) && lockedUntilMs > now.getTime()) {
+        throw new BadRequestException(
+          'Delivery OTP verification is temporarily locked. Please try again later.',
+        );
+      }
+
+      const existingExpiryMs = order.deliveryOtpExpiresAt
+        ? Date.parse(order.deliveryOtpExpiresAt)
+        : 0;
+
+      if (
+        order.deliveryOtpHash &&
+        Number.isFinite(existingExpiryMs) &&
+        existingExpiryMs > now.getTime()
+      ) {
+        throw new BadRequestException(
+          'A delivery OTP is already active for this order',
+        );
+      }
+
+      transaction.update(orderRef, {
+        deliveryOtp: null,
+        deliveryOtpHash: otpHash,
+        deliveryOtpCreatedAt,
+        deliveryOtpExpiresAt,
+        deliveryOtpAttempts: 0,
+        deliveryOtpLockedUntil: null,
+        updatedAt: deliveryOtpCreatedAt,
+      });
     });
 
-    return {
+    const response: {
+      success: true;
+      orderId: string;
+      expiresAt: string;
+      maxAttempts: number;
+      otp?: string;
+    } = {
       success: true,
       orderId,
-
-      // DEVELOPMENT ONLY.
-      // Remove after SMS integration.
-      otp,
+      expiresAt: deliveryOtpExpiresAt,
+      maxAttempts: OrdersService.DELIVERY_OTP_MAX_ATTEMPTS,
     };
+
+    if (this.configService.get<string>('NODE_ENV') !== 'production') {
+      response.otp = otp;
+    }
+
+    return response;
   }
 
   async verifyDeliveryOtp(orderId: string, riderId: string, otp: string) {
-    if (!otp) {
-      throw new BadRequestException('Delivery OTP is required');
-    }
+    const normalizedOtp = otp?.trim();
 
-    const db = this.firebaseService.getFirestore();
-
-    const orderRef = db.collection('orders').doc(orderId);
-
-    const snapshot = await orderRef.get();
-
-    if (!snapshot.exists) {
-      throw new NotFoundException('Order not found');
-    }
-
-    const order = snapshot.data() as OrderDocument;
-
-    if (order.riderId !== riderId) {
-      throw new BadRequestException('Order is not assigned to this rider');
-    }
-
-    if (order.status !== 'ON_THE_WAY') {
+    if (!normalizedOtp || !/^\d{4}$/.test(normalizedOtp)) {
       throw new BadRequestException(
-        'Order is not ready for delivery verification',
+        'A valid 4-digit delivery OTP is required',
       );
     }
 
-    if (!order.deliveryOtp) {
-      throw new BadRequestException('Delivery OTP has not been generated');
-    }
+    const db = this.firebaseService.getFirestore();
+    const orderRef = db.collection('orders').doc(orderId);
+    const partnerRef = db.collection('delivery_partners').doc(riderId);
+    const now = new Date();
+    const updatedAt = now.toISOString();
 
-    if (order.deliveryOtp !== otp) {
-      throw new BadRequestException('Invalid delivery OTP');
-    }
+    type VerificationResult =
+      | { type: 'SUCCESS'; order: OrderDocument }
+      | { type: 'INVALID'; remainingAttempts: number }
+      | { type: 'LOCKED'; lockedUntil: string }
+      | { type: 'EXPIRED' };
 
-    const updatedAt = new Date().toISOString();
+    const result = await db.runTransaction<VerificationResult>(
+      async (transaction) => {
+        const orderSnapshot = await transaction.get(orderRef);
+        const partnerSnapshot = await transaction.get(partnerRef);
 
-    await orderRef.update({
-      status: 'DELIVERED',
-      deliveryOtp: null,
-      deliveryOtpCreatedAt: null,
-      updatedAt,
-    });
+        if (!orderSnapshot.exists) {
+          throw new NotFoundException('Order not found');
+        }
 
-    const partnerRef = db
-      .collection('delivery_partners')
-      .doc(riderId);
+        const order = {
+          id: orderSnapshot.id,
+          ...orderSnapshot.data(),
+        } as OrderDocument;
 
-    const partnerSnapshot = await partnerRef.get();
+        if (order.riderId !== riderId) {
+          throw new ForbiddenException('This order is not assigned to you');
+        }
 
-    if (partnerSnapshot.exists) {
-      const partner = partnerSnapshot.data();
+        if (order.status !== 'ON_THE_WAY') {
+          throw new BadRequestException(
+            'Order is not ready for delivery verification',
+          );
+        }
 
-      await partnerRef.update({
-        isAvailable: partner?.isOnline === true,
-        updatedAt,
-      });
-    }
+        if (!order.deliveryOtpHash) {
+          throw new BadRequestException(
+            'Delivery OTP has not been generated',
+          );
+        }
 
-    const deliveredOrder: OrderDocument = {
-      ...order,
-      id: snapshot.id,
-      status: 'DELIVERED',
-      deliveryOtp: null,
-      deliveryOtpCreatedAt: null,
-      updatedAt,
-    };
+        const lockedUntilMs = order.deliveryOtpLockedUntil
+          ? Date.parse(order.deliveryOtpLockedUntil)
+          : 0;
 
-    await this.notifyCustomerDeliveryStatus(
-      deliveredOrder,
-      'DELIVERED',
+        if (Number.isFinite(lockedUntilMs) && lockedUntilMs > now.getTime()) {
+          return {
+            type: 'LOCKED',
+            lockedUntil: order.deliveryOtpLockedUntil!,
+          };
+        }
+
+        const expiryMs = order.deliveryOtpExpiresAt
+          ? Date.parse(order.deliveryOtpExpiresAt)
+          : 0;
+
+        if (!Number.isFinite(expiryMs) || expiryMs <= now.getTime()) {
+          return { type: 'EXPIRED' };
+        }
+
+        const isValid = this.isDeliveryOtpMatch(
+          orderId,
+          normalizedOtp,
+          order.deliveryOtpHash,
+        );
+
+        if (!isValid) {
+          const currentAttempts =
+            typeof order.deliveryOtpAttempts === 'number'
+              ? order.deliveryOtpAttempts
+              : 0;
+          const nextAttempts = currentAttempts + 1;
+
+          if (nextAttempts >= OrdersService.DELIVERY_OTP_MAX_ATTEMPTS) {
+            const lockedUntil = new Date(
+              now.getTime() + OrdersService.DELIVERY_OTP_LOCK_MS,
+            ).toISOString();
+
+            transaction.update(orderRef, {
+              deliveryOtpAttempts: nextAttempts,
+              deliveryOtpLockedUntil: lockedUntil,
+              updatedAt,
+            });
+
+            return { type: 'LOCKED', lockedUntil };
+          }
+
+          transaction.update(orderRef, {
+            deliveryOtpAttempts: nextAttempts,
+            updatedAt,
+          });
+
+          return {
+            type: 'INVALID',
+            remainingAttempts:
+              OrdersService.DELIVERY_OTP_MAX_ATTEMPTS - nextAttempts,
+          };
+        }
+
+        transaction.update(orderRef, {
+          status: 'DELIVERED',
+          deliveryOtp: null,
+          deliveryOtpHash: null,
+          deliveryOtpCreatedAt: null,
+          deliveryOtpExpiresAt: null,
+          deliveryOtpAttempts: 0,
+          deliveryOtpLockedUntil: null,
+          updatedAt,
+        });
+
+        if (partnerSnapshot.exists) {
+          const partner = partnerSnapshot.data();
+
+          transaction.update(partnerRef, {
+            isAvailable: partner?.isOnline === true,
+            updatedAt,
+          });
+        }
+
+        return {
+          type: 'SUCCESS',
+          order: {
+            ...order,
+            status: 'DELIVERED',
+            deliveryOtp: null,
+            deliveryOtpHash: null,
+            deliveryOtpCreatedAt: null,
+            deliveryOtpExpiresAt: null,
+            deliveryOtpAttempts: 0,
+            deliveryOtpLockedUntil: null,
+            updatedAt,
+          },
+        };
+      },
     );
+
+    if (result.type === 'EXPIRED') {
+      throw new BadRequestException(
+        'Delivery OTP has expired. Generate a new OTP.',
+      );
+    }
+
+    if (result.type === 'INVALID') {
+      throw new BadRequestException(
+        `Invalid delivery OTP. ${result.remainingAttempts} attempts remaining.`,
+      );
+    }
+
+    if (result.type === 'LOCKED') {
+      throw new BadRequestException(
+        `Too many invalid OTP attempts. Try again after ${result.lockedUntil}.`,
+      );
+    }
+
+    await this.notifyCustomerDeliveryStatus(result.order, 'DELIVERED');
 
     return {
       success: true,
