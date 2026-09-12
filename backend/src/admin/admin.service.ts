@@ -764,9 +764,18 @@ export class AdminService {
       ...(doc.data() as ModuleDocument),
     }));
 
-    return modules.sort((a, b) =>
-      (a.name ?? a.id).localeCompare(b.name ?? b.id),
-    );
+    return modules.sort((a, b) => {
+      const aOrder = a.sortOrder ?? 999;
+      const bOrder = b.sortOrder ?? 999;
+
+      if (aOrder !== bOrder) {
+        return aOrder - bOrder;
+      }
+
+      return (a.name ?? a.id).localeCompare(
+        b.name ?? b.id,
+      );
+    });
   }
 
   async updateModuleStatus(moduleId: string, isActive: boolean) {

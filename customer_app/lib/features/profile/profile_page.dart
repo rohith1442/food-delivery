@@ -1,0 +1,263 @@
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
+
+import '../auth/auth_api_service.dart';
+import '../addresses/addresses_page.dart';
+import '../orders/orders_page.dart';
+
+class ProfilePage extends StatefulWidget {
+  const ProfilePage({super.key});
+
+  @override
+  State<ProfilePage> createState() => _ProfilePageState();
+}
+
+class _ProfilePageState extends State<ProfilePage> {
+  final _authApiService = AuthApiService();
+
+  Map<String, dynamic>? _user;
+  bool _loading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfile();
+  }
+
+  Future<void> _loadProfile() async {
+    try {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+
+      final response = await _authApiService.getCurrentUser();
+
+      if (!mounted) {
+        return;
+      }
+
+      final rawUser = response['user'];
+
+      setState(() {
+        _user = rawUser is Map<String, dynamic>
+            ? rawUser
+            : rawUser is Map
+            ? Map<String, dynamic>.from(rawUser)
+            : null;
+      });
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _error = 'Unable to load profile.';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _loading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _logout() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Logout'),
+          content: const Text('Are you sure you want to logout?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Logout'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true) {
+      return;
+    }
+
+    await FirebaseAuth.instance.signOut();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_error != null) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(_error!),
+            const SizedBox(height: 12),
+            FilledButton(onPressed: _loadProfile, child: const Text('Retry')),
+          ],
+        ),
+      );
+    }
+
+    final user = _user ?? <String, dynamic>{};
+    final name = user['name']?.toString().trim() ?? '';
+    final email = user['email']?.toString().trim() ?? '';
+    final phone = user['phoneNumber']?.toString().trim() ?? '';
+
+    return Scaffold(
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      appBar: AppBar(title: const Text('Profile'), centerTitle: true),
+      body: RefreshIndicator(
+        onRefresh: _loadProfile,
+        child: ListView(
+          padding: const EdgeInsets.all(20),
+          children: [
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primaryContainer,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 32,
+                    backgroundColor: Theme.of(context).colorScheme.primary,
+                    child: Text(
+                      _initials(name),
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).colorScheme.onPrimary,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          name.isNotEmpty ? name : 'Customer',
+                          style: Theme.of(context).textTheme.titleLarge
+                              ?.copyWith(fontWeight: FontWeight.bold),
+                        ),
+                        if (phone.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            phone,
+                            style: Theme.of(context).textTheme.bodyMedium,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+            _ProfileTile(
+              icon: Icons.location_on_outlined,
+              title: 'Saved Addresses',
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const AddressesPage()),
+                );
+              },
+            ),
+            _ProfileTile(
+              icon: Icons.receipt_long_outlined,
+              title: 'My Orders',
+              onTap: () {
+                Navigator.of(
+                  context,
+                ).push(MaterialPageRoute(builder: (_) => const OrdersPage()));
+              },
+            ),
+            if (email.isNotEmpty)
+              _ProfileTile(
+                icon: Icons.email_outlined,
+                title: 'Email',
+                subtitle: email,
+              ),
+            const SizedBox(height: 12),
+            _ProfileTile(
+              icon: Icons.logout,
+              title: 'Logout',
+              danger: true,
+              onTap: _logout,
+            ),
+            const SizedBox(height: 32),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _initials(String name) {
+    final parts = name
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((value) => value.isNotEmpty)
+        .toList();
+
+    if (parts.isEmpty) {
+      return 'C';
+    }
+
+    if (parts.length == 1) {
+      return parts.first[0].toUpperCase();
+    }
+
+    return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
+  }
+}
+
+class _ProfileTile extends StatelessWidget {
+  const _ProfileTile({
+    required this.icon,
+    required this.title,
+    this.subtitle,
+    this.onTap,
+    this.danger = false,
+  });
+
+  final IconData icon;
+  final String title;
+  final String? subtitle;
+  final VoidCallback? onTap;
+  final bool danger;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = danger ? Colors.red : null;
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 10),
+      child: ListTile(
+        leading: Icon(icon, color: color),
+        title: Text(
+          title,
+          style: TextStyle(color: color, fontWeight: FontWeight.w600),
+        ),
+        subtitle: subtitle != null ? Text(subtitle!) : null,
+        trailing: onTap != null && !danger
+            ? const Icon(Icons.chevron_right)
+            : null,
+        onTap: onTap,
+      ),
+    );
+  }
+}

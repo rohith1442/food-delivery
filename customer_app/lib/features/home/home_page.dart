@@ -6,6 +6,7 @@ import '../../core/config/home_config.dart';
 import '../location/addresses_api_service.dart';
 import '../location/saved_addresses_page.dart';
 import '../orders/orders_page.dart';
+import '../profile/profile_page.dart';
 import '../restaurants/menu_page.dart';
 import '../restaurants/restaurants_page.dart';
 import '../restaurants/stores_api_service.dart';
@@ -355,7 +356,8 @@ class _HomePageState extends State<HomePage> {
     }
 
     if (index == 3) {
-      _showMessage('Profile coming soon.');
+      Navigator.of(context)
+          .push(MaterialPageRoute(builder: (_) => const ProfilePage()));
     }
   }
 
@@ -570,18 +572,20 @@ class _HomePageState extends State<HomePage> {
     ];
   }
 
-  List<Widget> _buildNearbySlivers(HomeConfig config) {
+  List<Widget> _buildNearbySlivers(
+    HomeConfig config, {
+    bool isSearchResults = false,
+  }) {
     final branding = AppBrandingController.instance.branding;
     final stores = _filteredStores;
-    final title = _searchQuery.isEmpty ? 'Nearby Stores' : 'Search Results';
 
     final heading = SliverToBoxAdapter(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
         child: SectionHeader(
-          title: title,
-          actionText: _searchQuery.isEmpty ? 'See all' : null,
-          onAction: _searchQuery.isEmpty ? _openRestaurants : null,
+          title: isSearchResults ? 'Search Results' : 'Nearby Stores',
+          actionText: isSearchResults ? null : 'See all',
+          onAction: isSearchResults ? null : _openRestaurants,
         ),
       ),
     );
@@ -677,14 +681,18 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     final branding = AppBrandingController.instance.branding;
     final homeConfig = HomeConfigController.instance.config;
+    final isSearching = _searchQuery.trim().isNotEmpty;
     final orderedSections =
         homeConfig.sections.where((section) => section.enabled).toList()
           ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
 
     final slivers = <Widget>[
       _buildHeaderSliver(branding),
-      for (final section in orderedSections)
-        ..._buildSectionSlivers(section.id, homeConfig),
+      if (isSearching)
+        ..._buildNearbySlivers(homeConfig, isSearchResults: true)
+      else
+        for (final section in orderedSections)
+          ..._buildSectionSlivers(section.id, homeConfig),
       const SliverToBoxAdapter(child: SizedBox(height: 110)),
     ];
 
