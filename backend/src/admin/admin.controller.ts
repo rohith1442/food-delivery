@@ -175,6 +175,19 @@ async updateSettings(
 
     deliveryMinVersion?: string;
     deliveryForceUpdate?: boolean;
+
+    appName?: string;
+    shortName?: string;
+    tagline?: string;
+    logoUrl?: string;
+
+    primaryColor?: string;
+    secondaryColor?: string;
+    accentColor?: string;
+
+    currencySymbol?: string;
+    supportPhone?: string;
+    deliveryPromiseText?: string;
   },
 ) {
   return this.adminService.updateSettings(body);

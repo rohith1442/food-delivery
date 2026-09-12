@@ -24,6 +24,19 @@ interface Settings {
   deliveryMinVersion: string;
   deliveryForceUpdate: boolean;
 
+  appName: string;
+  shortName: string;
+  tagline: string;
+  logoUrl: string;
+
+  primaryColor: string;
+  secondaryColor: string;
+  accentColor: string;
+
+  currencySymbol: string;
+  supportPhone: string;
+  deliveryPromiseText: string;
+
   updatedAt?: string;
 }
 
@@ -40,6 +53,19 @@ const defaultSettings: Settings = {
 
   deliveryMinVersion: "1.0.0",
   deliveryForceUpdate: false,
+
+  appName: "Fresh Food",
+  shortName: "Fresh Food",
+  tagline: "Fresh Food at Your Fingertips",
+  logoUrl: "",
+
+  primaryColor: "#159447",
+  secondaryColor: "#FF6B00",
+  accentColor: "#F5B400",
+
+  currencySymbol: "₹",
+  supportPhone: "",
+  deliveryPromiseText: "20-Min Delivery",
 };
 
 export default function SettingsPage() {
@@ -139,6 +165,22 @@ export default function SettingsPage() {
 
         deliveryForceUpdate:
           settings.deliveryForceUpdate,
+
+        appName: settings.appName.trim(),
+        shortName: settings.shortName.trim(),
+        tagline: settings.tagline.trim(),
+        logoUrl: settings.logoUrl.trim(),
+
+        primaryColor: settings.primaryColor.trim(),
+        secondaryColor:
+          settings.secondaryColor.trim(),
+        accentColor: settings.accentColor.trim(),
+
+        currencySymbol:
+          settings.currencySymbol.trim(),
+        supportPhone: settings.supportPhone.trim(),
+        deliveryPromiseText:
+          settings.deliveryPromiseText.trim(),
       };
 
       await api.patch(
@@ -206,6 +248,199 @@ export default function SettingsPage() {
           onSubmit={handleSubmit}
           className="mt-8 space-y-6"
         >
+          <section className="rounded-xl bg-white p-6 shadow-sm">
+            <div className="flex items-start justify-between gap-6">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">
+                  Branding
+                </h2>
+
+                <p className="mt-1 text-sm text-gray-500">
+                  Configure the brand displayed across
+                  customer-facing applications.
+                </p>
+              </div>
+
+              <div
+                className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-xl text-xl font-bold text-white"
+                style={{
+                  backgroundColor:
+                    settings.primaryColor ||
+                    "#159447",
+                }}
+              >
+                {settings.logoUrl ? (
+                  <img
+                    src={settings.logoUrl}
+                    alt={settings.appName}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  settings.shortName
+                    .trim()
+                    .charAt(0)
+                    .toUpperCase() || "F"
+                )}
+              </div>
+            </div>
+
+            <div className="mt-6 grid gap-5 md:grid-cols-2">
+              <TextField
+                label="App Name"
+                value={settings.appName}
+                placeholder="Fresh Food"
+                onChange={(value) =>
+                  updateField("appName", value)
+                }
+              />
+
+              <TextField
+                label="Short Name"
+                value={settings.shortName}
+                placeholder="Fresh Food"
+                onChange={(value) =>
+                  updateField("shortName", value)
+                }
+              />
+
+              <TextField
+                label="Tagline"
+                value={settings.tagline}
+                placeholder="Fresh Food at Your Fingertips"
+                onChange={(value) =>
+                  updateField("tagline", value)
+                }
+              />
+
+              <TextField
+                label="Logo URL"
+                value={settings.logoUrl}
+                placeholder="https://..."
+                onChange={(value) =>
+                  updateField("logoUrl", value)
+                }
+              />
+
+              <ColorField
+                label="Primary Color"
+                value={settings.primaryColor}
+                onChange={(value) =>
+                  updateField("primaryColor", value)
+                }
+              />
+
+              <ColorField
+                label="Secondary Color"
+                value={settings.secondaryColor}
+                onChange={(value) =>
+                  updateField(
+                    "secondaryColor",
+                    value,
+                  )
+                }
+              />
+
+              <ColorField
+                label="Accent Color"
+                value={settings.accentColor}
+                onChange={(value) =>
+                  updateField("accentColor", value)
+                }
+              />
+
+              <TextField
+                label="Currency Symbol"
+                value={settings.currencySymbol}
+                placeholder="₹"
+                onChange={(value) =>
+                  updateField(
+                    "currencySymbol",
+                    value,
+                  )
+                }
+              />
+
+              <TextField
+                label="Support Phone"
+                value={settings.supportPhone}
+                placeholder="+91..."
+                onChange={(value) =>
+                  updateField("supportPhone", value)
+                }
+              />
+
+              <TextField
+                label="Delivery Promise"
+                value={settings.deliveryPromiseText}
+                placeholder="20-Min Delivery"
+                onChange={(value) =>
+                  updateField(
+                    "deliveryPromiseText",
+                    value,
+                  )
+                }
+              />
+            </div>
+
+            <div className="mt-6 rounded-xl border border-gray-200 p-5">
+              <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                Preview
+              </p>
+
+              <div className="mt-4 flex items-center gap-4">
+                <div
+                  className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-xl text-xl font-bold text-white"
+                  style={{
+                    backgroundColor:
+                      settings.primaryColor ||
+                      "#159447",
+                  }}
+                >
+                  {settings.logoUrl ? (
+                    <img
+                      src={settings.logoUrl}
+                      alt=""
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    settings.shortName
+                      .trim()
+                      .charAt(0)
+                      .toUpperCase() || "F"
+                  )}
+                </div>
+
+                <div>
+                  <p className="text-lg font-bold text-gray-900">
+                    {settings.appName ||
+                      "Fresh Food"}
+                  </p>
+
+                  <p className="text-sm text-gray-500">
+                    {settings.tagline ||
+                      "Fresh Food at Your Fingertips"}
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-4 flex gap-2">
+                {[
+                  settings.primaryColor,
+                  settings.secondaryColor,
+                  settings.accentColor,
+                ].map((color, index) => (
+                  <div
+                    key={index}
+                    className="h-8 flex-1 rounded-lg border border-black/5"
+                    style={{
+                      backgroundColor: color,
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+          </section>
+
           <section className="rounded-xl bg-white p-6 shadow-sm">
             <h2 className="text-lg font-semibold text-gray-900">
               Order Configuration
@@ -360,6 +595,78 @@ export default function SettingsPage() {
         </form>
       </div>
     </main>
+  );
+}
+
+function TextField({
+  label,
+  value,
+  placeholder,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  placeholder?: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label>
+      <span className="text-sm font-medium text-gray-700">
+        {label}
+      </span>
+
+      <input
+        type="text"
+        value={value}
+        placeholder={placeholder}
+        onChange={(event) =>
+          onChange(event.target.value)
+        }
+        className="mt-2 w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-gray-500"
+      />
+    </label>
+  );
+}
+
+function ColorField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label>
+      <span className="text-sm font-medium text-gray-700">
+        {label}
+      </span>
+
+      <div className="mt-2 flex overflow-hidden rounded-lg border border-gray-300">
+        <input
+          type="color"
+          value={value}
+          onChange={(event) =>
+            onChange(
+              event.target.value.toUpperCase(),
+            )
+          }
+          className="h-12 w-14 cursor-pointer border-0 bg-transparent p-1"
+        />
+
+        <input
+          type="text"
+          value={value}
+          onChange={(event) =>
+            onChange(event.target.value)
+          }
+          placeholder="#159447"
+          maxLength={7}
+          className="min-w-0 flex-1 px-4 outline-none"
+        />
+      </div>
+    </label>
   );
 }
 

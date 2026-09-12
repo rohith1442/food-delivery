@@ -21,6 +21,19 @@ interface GlobalSettings {
 
   deliveryMinVersion?: string;
   deliveryForceUpdate?: boolean;
+
+  appName?: string;
+  shortName?: string;
+  tagline?: string;
+  logoUrl?: string;
+
+  primaryColor?: string;
+  secondaryColor?: string;
+  accentColor?: string;
+
+  currencySymbol?: string;
+  supportPhone?: string;
+  deliveryPromiseText?: string;
 }
 
 @Injectable()
@@ -61,6 +74,24 @@ export class SettingsService {
     const maintenanceMode =
       settings.maintenanceMode === true;
 
+    const branding = {
+      appName: settings.appName ?? 'Fresh Food',
+      shortName: settings.shortName ?? 'Fresh Food',
+      tagline:
+        settings.tagline ??
+        'Fresh Food at Your Fingertips',
+      logoUrl: settings.logoUrl ?? '',
+      primaryColor: settings.primaryColor ?? '#159447',
+      secondaryColor:
+        settings.secondaryColor ?? '#FF6B00',
+      accentColor: settings.accentColor ?? '#F5B400',
+      currencySymbol: settings.currencySymbol ?? '₹',
+      supportPhone: settings.supportPhone ?? '',
+      deliveryPromiseText:
+        settings.deliveryPromiseText ??
+        '20-Min Delivery',
+    };
+
     switch (appType) {
       case 'CUSTOMER':
         return {
@@ -72,6 +103,7 @@ export class SettingsService {
           forceUpdate:
             settings.customerForceUpdate ===
             true,
+          branding,
         };
 
       case 'MERCHANT':
@@ -84,6 +116,7 @@ export class SettingsService {
           forceUpdate:
             settings.merchantForceUpdate ===
             true,
+          branding,
         };
 
       case 'DELIVERY':
@@ -96,6 +129,7 @@ export class SettingsService {
           forceUpdate:
             settings.deliveryForceUpdate ===
             true,
+          branding,
         };
     }
   }

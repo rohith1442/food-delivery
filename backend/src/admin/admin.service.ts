@@ -81,6 +81,19 @@ interface GlobalSettingsDocument {
   deliveryMinVersion?: string;
   deliveryForceUpdate?: boolean;
 
+  appName?: string;
+  shortName?: string;
+  tagline?: string;
+  logoUrl?: string;
+
+  primaryColor?: string;
+  secondaryColor?: string;
+  accentColor?: string;
+
+  currencySymbol?: string;
+  supportPhone?: string;
+  deliveryPromiseText?: string;
+
   updatedAt?: string;
 }
 
@@ -856,6 +869,19 @@ export class AdminService {
 
         deliveryMinVersion: '1.0.0',
         deliveryForceUpdate: false,
+
+        appName: 'Fresh Food',
+        shortName: 'Fresh Food',
+        tagline: 'Fresh Food at Your Fingertips',
+        logoUrl: '',
+
+        primaryColor: '#159447',
+        secondaryColor: '#FF6B00',
+        accentColor: '#F5B400',
+
+        currencySymbol: '₹',
+        supportPhone: '',
+        deliveryPromiseText: '20-Min Delivery',
       };
     }
 
@@ -944,6 +970,74 @@ export class AdminService {
 
       Object.assign(updates, {
         [field]: value,
+      });
+    }
+
+    const stringFields: Array<
+      keyof GlobalSettingsDocument
+    > = [
+      'appName',
+      'shortName',
+      'tagline',
+      'logoUrl',
+      'currencySymbol',
+      'supportPhone',
+      'deliveryPromiseText',
+    ];
+
+    for (const field of stringFields) {
+      const value = data[field];
+
+      if (value === undefined) {
+        continue;
+      }
+
+      if (typeof value !== 'string') {
+        throw new BadRequestException(
+          `${field} must be a string`,
+        );
+      }
+
+      Object.assign(updates, {
+        [field]: value.trim(),
+      });
+    }
+
+    if (
+      data.appName !== undefined &&
+      !data.appName.trim()
+    ) {
+      throw new BadRequestException(
+        'appName cannot be empty',
+      );
+    }
+
+    const colorFields: Array<
+      keyof GlobalSettingsDocument
+    > = [
+      'primaryColor',
+      'secondaryColor',
+      'accentColor',
+    ];
+
+    for (const field of colorFields) {
+      const value = data[field];
+
+      if (value === undefined) {
+        continue;
+      }
+
+      if (
+        typeof value !== 'string' ||
+        !/^#[0-9A-Fa-f]{6}$/.test(value.trim())
+      ) {
+        throw new BadRequestException(
+          `${field} must be a valid hex color like #159447`,
+        );
+      }
+
+      Object.assign(updates, {
+        [field]: value.trim().toUpperCase(),
       });
     }
 

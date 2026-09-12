@@ -1,17 +1,21 @@
 import 'package:dio/dio.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
+import '../core/config/app_branding.dart';
+
 class AppConfigResult {
   final bool maintenanceMode;
   final bool updateRequired;
   final String currentVersion;
   final String minimumVersion;
+  final AppBranding branding;
 
   const AppConfigResult({
     required this.maintenanceMode,
     required this.updateRequired,
     required this.currentVersion,
     required this.minimumVersion,
+    required this.branding,
   });
 }
 
@@ -27,61 +31,48 @@ class AppConfigService {
   Future<AppConfigResult> check() async {
     final response = await _dio.get(
       '/settings/app-config',
-      queryParameters: {
-        'app': 'CUSTOMER',
-      },
+      queryParameters: {'app': 'CUSTOMER'},
     );
 
-    final data =
-    Map<String, dynamic>.from(response.data);
+    final data = Map<String, dynamic>.from(response.data);
 
-    final maintenanceMode =
-        data['maintenanceMode'] == true;
+    final maintenanceMode = data['maintenanceMode'] == true;
 
-    final forceUpdate =
-        data['forceUpdate'] == true;
+    final forceUpdate = data['forceUpdate'] == true;
 
-    final minimumVersion =
-        data['minimumVersion']?.toString() ??
-            '1.0.0';
+    final minimumVersion = data['minimumVersion']?.toString() ?? '1.0.0';
 
-    final packageInfo =
-    await PackageInfo.fromPlatform();
+    final brandingJson = data['branding'] is Map
+        ? Map<String, dynamic>.from(data['branding'] as Map)
+        : null;
 
-    final currentVersion =
-        packageInfo.version;
+    final branding = AppBranding.fromJson(brandingJson);
+
+    final packageInfo = await PackageInfo.fromPlatform();
+
+    final currentVersion = packageInfo.version;
 
     return AppConfigResult(
       maintenanceMode: maintenanceMode,
       updateRequired:
-      forceUpdate &&
-          _isVersionLower(
-            currentVersion,
-            minimumVersion,
-          ),
+          forceUpdate && _isVersionLower(currentVersion, minimumVersion),
       currentVersion: currentVersion,
       minimumVersion: minimumVersion,
+      branding: branding,
     );
   }
 
-  bool _isVersionLower(
-      String current,
-      String minimum,
-      ) {
-    final currentParts =
-    _parseVersion(current);
+  bool _isVersionLower(String current, String minimum) {
+    final currentParts = _parseVersion(current);
 
-    final minimumParts =
-    _parseVersion(minimum);
+    final minimumParts = _parseVersion(minimum);
 
     for (var i = 0; i < 3; i++) {
-      if (currentParts[i] <
-          minimumParts[i]) {
+      if (currentParts[i] < minimumParts[i]) {
         return true;
       }
 
-      if (currentParts[i] >
-          minimumParts[i]) {
+      if (currentParts[i] > minimumParts[i]) {
         return false;
       }
     }
@@ -89,27 +80,17 @@ class AppConfigService {
     return false;
   }
 
-  List<int> _parseVersion(
-      String version,
-      ) {
-    final cleanVersion =
-        version.split('+').first;
+  List<int> _parseVersion(String version) {
+    final cleanVersion = version.split('+').first;
 
-    final parts =
-    cleanVersion.split('.');
+    final parts = cleanVersion.split('.');
 
-    return List.generate(
-      3,
-          (index) {
-        if (index >= parts.length) {
-          return 0;
-        }
+    return List.generate(3, (index) {
+      if (index >= parts.length) {
+        return 0;
+      }
 
-        return int.tryParse(
-          parts[index],
-        ) ??
-            0;
-      },
-    );
+      return int.tryParse(parts[index]) ?? 0;
+    });
   }
 }

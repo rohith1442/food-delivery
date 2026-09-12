@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import 'auth_api_service.dart';
+import '../../services/notification_service.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -48,6 +49,8 @@ class _LoginPageState extends State<LoginPage> {
           await _auth.signInWithCredential(credential);
 
           await _authApiService.ensureCustomerProfile();
+
+          await NotificationService().initialize();
 
           if (!mounted) return;
 
@@ -110,6 +113,8 @@ class _LoginPageState extends State<LoginPage> {
       await _auth.signInWithCredential(credential);
 
       await _authApiService.ensureCustomerProfile();
+
+      await NotificationService().initialize();
 
       if (!mounted) return;
 
