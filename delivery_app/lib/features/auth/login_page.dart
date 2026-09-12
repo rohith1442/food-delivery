@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/network/api_client.dart';
+import '../../services/notification_service.dart';
 
 class DeliveryLoginPage extends StatefulWidget {
   const DeliveryLoginPage({super.key});
@@ -98,14 +99,18 @@ class _DeliveryLoginPageState
         return;
       }
 
-      if (!mounted) return;
-
       if (status == 'ACTIVE' && isActive) {
+        await NotificationService().initialize();
+
+        if (!mounted) return;
+
         context.go('/dashboard');
         return;
       }
 
       if (status == 'PENDING') {
+        if (!mounted) return;
+
         context.go('/approval-pending');
         return;
       }

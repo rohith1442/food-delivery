@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/network/api_client.dart';
+import '../../services/notification_service.dart';
 
 class MerchantLoginPage extends StatefulWidget {
   const MerchantLoginPage({super.key});
@@ -99,6 +100,8 @@ class _MerchantLoginPageState
 
       switch (status) {
         case 'ACTIVE':
+          await NotificationService().initialize();
+
           if (!mounted) return;
 
           context.go('/dashboard');

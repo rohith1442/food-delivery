@@ -659,6 +659,43 @@
           }
         },
         {
+          "name": "Delivery: GET /delivery/profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/delivery/profile",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["delivery", "profile"]
+            }
+          }
+        },
+        {
+          "name": "Delivery: PATCH /delivery/profile/availability",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"zoneId\": \"{{zoneId}}\",\n  \"isOnline\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/delivery/profile/availability",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "3000",
+              "path": ["delivery", "profile", "availability"]
+            }
+          }
+        },
+        {
           "name": "Delivery: GET /delivery/orders",
           "request": {
             "method": "GET",

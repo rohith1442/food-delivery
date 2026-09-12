@@ -943,6 +943,8 @@ export class OrdersService {
 
         this.logger.log(`Order rejected and stock restored orderId=${orderId}`);
 
+        await this.notifyCustomerOrderStatus(rejectedOrder, 'REJECTED');
+
         // ------------------------------------------------
         // REFUND ONLINE PAID ORDER
         // ------------------------------------------------
@@ -1067,6 +1069,16 @@ export class OrdersService {
         `Order status updated orderId=${orderId} ${order.status} -> ${status}`,
       );
 
+      await this.notifyCustomerOrderStatus(order, status);
+
+      if (status === 'READY') {
+        await this.notifyAvailableDeliveryPartners({
+          ...order,
+          status,
+          updatedAt,
+        });
+      }
+
       return {
         success: true,
 
@@ -1098,12 +1110,363 @@ export class OrdersService {
     }
   }
 
+  private async notifyCustomerOrderStatus(
+    order: OrderDocument,
+    status: string,
+  ): Promise<void> {
+    const notifications: Record<
+      string,
+      { title: string; body: string }
+    > = {
+      ACCEPTED: {
+        title: 'Order Accepted',
+        body: `${order.storeName} accepted your order.`,
+      },
+      PREPARING: {
+        title: 'Preparing Your Order',
+        body: `${order.storeName} is preparing your order.`,
+      },
+      READY: {
+        title: 'Order Ready',
+        body: 'Your order is ready for pickup by a delivery partner.',
+      },
+      REJECTED: {
+        title: 'Order Rejected',
+        body: `${order.storeName} could not accept your order.`,
+      },
+    };
+
+    const notification = notifications[status];
+
+    if (!notification) {
+      return;
+    }
+
+    await this.notificationsService.sendToUser(order.customerId, {
+      title: notification.title,
+      body: notification.body,
+      data: {
+        type: 'ORDER_STATUS_CHANGED',
+        orderId: order.id,
+        status,
+      },
+    });
+  }
+
+  private async notifyCustomerDeliveryStatus(
+    order: OrderDocument,
+    status: string,
+  ): Promise<void> {
+    const notifications: Record<
+      string,
+      { title: string; body: string }
+    > = {
+      RIDER_ASSIGNED: {
+        title: 'Delivery Partner Assigned',
+        body: 'A delivery partner has been assigned to your order.',
+      },
+      PICKED_UP: {
+        title: 'Order Picked Up',
+        body: `Your order from ${order.storeName} has been picked up.`,
+      },
+      ON_THE_WAY: {
+        title: 'Order On The Way',
+        body: 'Your order is on the way.',
+      },
+      DELIVERED: {
+        title: 'Order Delivered',
+        body: 'Your order has been delivered successfully.',
+      },
+    };
+
+    const notification = notifications[status];
+
+    if (!notification) {
+      return;
+    }
+
+    await this.notificationsService.sendToUser(order.customerId, {
+      title: notification.title,
+      body: notification.body,
+      data: {
+        type: 'DELIVERY_STATUS_CHANGED',
+        orderId: order.id,
+        status,
+      },
+    });
+  }
+
+  private async notifyAvailableDeliveryPartners(
+    order: OrderDocument,
+  ): Promise<void> {
+    try {
+      const db = this.firebaseService.getFirestore();
+
+      const zoneId = order.deliveryAddress?.zoneId;
+
+      if (!zoneId) {
+        this.logger.warn(
+          `Cannot notify riders - order has no zoneId orderId=${order.id}`,
+        );
+        return;
+      }
+
+      const partnersSnapshot = await db
+        .collection('delivery_partners')
+        .where('zoneId', '==', zoneId)
+        .get();
+
+      if (partnersSnapshot.empty) {
+        this.logger.log(
+          `No delivery partners found zoneId=${zoneId}`,
+        );
+        return;
+      }
+
+      const eligiblePartnerIds: string[] = [];
+
+      for (const partnerDoc of partnersSnapshot.docs) {
+        const partner = partnerDoc.data();
+
+        if (
+          partner.isOnline !== true ||
+          partner.isAvailable !== true
+        ) {
+          continue;
+        }
+
+        const userSnapshot = await db
+          .collection('users')
+          .doc(partnerDoc.id)
+          .get();
+
+        if (!userSnapshot.exists) {
+          continue;
+        }
+
+        const user = userSnapshot.data();
+
+        if (
+          user?.role !== 'DELIVERY' ||
+          user?.status !== 'ACTIVE' ||
+          user?.isActive !== true
+        ) {
+          continue;
+        }
+
+        eligiblePartnerIds.push(partnerDoc.id);
+      }
+
+      if (eligiblePartnerIds.length === 0) {
+        this.logger.log(
+          `No eligible delivery partners zoneId=${zoneId}`,
+        );
+        return;
+      }
+
+      await Promise.all(
+        eligiblePartnerIds.map((riderId) =>
+          this.notificationsService.sendToUser(riderId, {
+            title: 'New Delivery Available',
+            body: `A new delivery is ready from ${order.storeName}.`,
+            data: {
+              type: 'NEW_DELIVERY',
+              orderId: order.id,
+              storeId: order.storeId,
+              zoneId,
+            },
+          }),
+        ),
+      );
+
+      this.logger.log(
+        `Delivery notification sent orderId=${order.id} riders=${eligiblePartnerIds.length}`,
+      );
+    } catch (error) {
+      // Never fail merchant status update because FCM failed.
+      this.logger.error(
+        `Failed to notify delivery partners orderId=${order.id}`,
+        error instanceof Error
+          ? error.stack
+          : String(error),
+      );
+    }
+  }
+
   // --------------------------------------------------
   // DELIVERY
   // --------------------------------------------------
 
+  async getDeliveryPartnerProfile(uid: string) {
+    const db = this.firebaseService.getFirestore();
+
+    const userSnapshot = await db
+      .collection('users')
+      .doc(uid)
+      .get();
+
+    if (!userSnapshot.exists) {
+      throw new NotFoundException('User not found');
+    }
+
+    const user = userSnapshot.data();
+
+    if (
+      user?.role !== 'DELIVERY' ||
+      user?.status !== 'ACTIVE' ||
+      user?.isActive !== true
+    ) {
+      throw new ForbiddenException(
+        'Delivery partner account is not active',
+      );
+    }
+
+    const partnerRef = db
+      .collection('delivery_partners')
+      .doc(uid);
+
+    const partnerSnapshot = await partnerRef.get();
+
+    if (!partnerSnapshot.exists) {
+      return {
+        success: true,
+        profile: {
+          userId: uid,
+          zoneId: null,
+          isOnline: false,
+          isAvailable: false,
+        },
+      };
+    }
+
+    return {
+      success: true,
+      profile: {
+        userId: uid,
+        ...partnerSnapshot.data(),
+      },
+    };
+  }
+
+  async updateDeliveryPartnerAvailability(
+    uid: string,
+    data: {
+      zoneId?: string;
+      isOnline?: boolean;
+    },
+  ) {
+    const db = this.firebaseService.getFirestore();
+
+    const userSnapshot = await db
+      .collection('users')
+      .doc(uid)
+      .get();
+
+    if (!userSnapshot.exists) {
+      throw new NotFoundException('User not found');
+    }
+
+    const user = userSnapshot.data();
+
+    if (
+      user?.role !== 'DELIVERY' ||
+      user?.status !== 'ACTIVE' ||
+      user?.isActive !== true
+    ) {
+      throw new ForbiddenException(
+        'Delivery partner account is not active',
+      );
+    }
+
+    const partnerRef = db
+      .collection('delivery_partners')
+      .doc(uid);
+
+    const existingSnapshot = await partnerRef.get();
+    const existing = existingSnapshot.data();
+
+    const zoneId =
+      data.zoneId?.trim() ||
+      existing?.zoneId ||
+      null;
+
+    if (!zoneId) {
+      throw new BadRequestException(
+        'Delivery zone is required',
+      );
+    }
+
+    const zoneSnapshot = await db
+      .collection('zones')
+      .doc(zoneId)
+      .get();
+
+    if (!zoneSnapshot.exists) {
+      throw new BadRequestException('Invalid delivery zone');
+    }
+
+    const zone = zoneSnapshot.data();
+
+    if (zone?.isActive !== true) {
+      throw new BadRequestException(
+        'Delivery zone is not active',
+      );
+    }
+
+    const isOnline =
+      data.isOnline ?? existing?.isOnline ?? false;
+
+    const now = new Date().toISOString();
+
+    const profile = {
+      userId: uid,
+      zoneId,
+      isOnline,
+      isAvailable: isOnline,
+      updatedAt: now,
+      ...(!existingSnapshot.exists
+        ? { createdAt: now }
+        : {}),
+    };
+
+    await partnerRef.set(profile, { merge: true });
+
+    return {
+      success: true,
+      profile,
+    };
+  }
+
   async getDeliveryOrders(riderId: string) {
     const db = this.firebaseService.getFirestore();
+
+    const userSnapshot = await db
+      .collection('users')
+      .doc(riderId)
+      .get();
+
+    if (!userSnapshot.exists) {
+      throw new NotFoundException('User not found');
+    }
+
+    const user = userSnapshot.data();
+
+    if (
+      user?.role !== 'DELIVERY' ||
+      user?.status !== 'ACTIVE' ||
+      user?.isActive !== true
+    ) {
+      throw new ForbiddenException(
+        'Delivery partner account is not active',
+      );
+    }
+
+    const partnerSnapshot = await db
+      .collection('delivery_partners')
+      .doc(riderId)
+      .get();
+
+    const partner = partnerSnapshot.data();
 
     const snapshot = await db
       .collection('orders')
@@ -1125,11 +1488,24 @@ export class OrdersService {
         };
       })
       .filter((order) => {
-        if (order.status === 'READY') {
-          return order.riderId == null;
+        // Rider's current assigned order must remain visible.
+        if (order.riderId === riderId) {
+          return true;
         }
 
-        return order.riderId === riderId;
+        // New orders are shown only to online, available riders in the same zone.
+        if (
+          order.status === 'READY' &&
+          order.riderId == null &&
+          partner?.isOnline === true &&
+          partner?.isAvailable === true &&
+          typeof partner?.zoneId === 'string' &&
+          partner.zoneId === order.deliveryAddress.zoneId
+        ) {
+          return true;
+        }
+
+        return false;
       });
 
     orders.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
@@ -1140,21 +1516,80 @@ export class OrdersService {
     };
   }
 
-  async acceptDeliveryOrder(orderId: string, riderId: string) {
+  async acceptDeliveryOrder(
+    orderId: string,
+    riderId: string,
+  ) {
     const db = this.firebaseService.getFirestore();
 
-    const orderRef = db.collection('orders').doc(orderId);
+    const orderRef =
+      db.collection('orders').doc(orderId);
+
+    const partnerRef = db
+      .collection('delivery_partners')
+      .doc(riderId);
+
+    const userRef =
+      db.collection('users').doc(riderId);
 
     const updatedAt = new Date().toISOString();
 
     await db.runTransaction(async (transaction) => {
-      const snapshot = await transaction.get(orderRef);
+      const [
+        orderSnapshot,
+        partnerSnapshot,
+        userSnapshot,
+      ] = await Promise.all([
+        transaction.get(orderRef),
+        transaction.get(partnerRef),
+        transaction.get(userRef),
+      ]);
 
-      if (!snapshot.exists) {
-        throw new NotFoundException('Order not found');
+      if (!userSnapshot.exists) {
+        throw new NotFoundException(
+          'Delivery partner not found',
+        );
       }
 
-      const order = snapshot.data() as OrderDocument;
+      const user = userSnapshot.data();
+
+      if (
+        user?.role !== 'DELIVERY' ||
+        user?.status !== 'ACTIVE' ||
+        user?.isActive !== true
+      ) {
+        throw new ForbiddenException(
+          'Delivery partner account is not active',
+        );
+      }
+
+      if (!partnerSnapshot.exists) {
+        throw new BadRequestException(
+          'Delivery partner profile is not configured',
+        );
+      }
+
+      const partner = partnerSnapshot.data();
+
+      if (
+        partner?.isOnline !== true ||
+        partner?.isAvailable !== true
+      ) {
+        throw new BadRequestException(
+          'Delivery partner is not available',
+        );
+      }
+
+      if (!orderSnapshot.exists) {
+        throw new NotFoundException(
+          'Order not found',
+        );
+      }
+
+      const order = {
+        id: orderSnapshot.id,
+        ...orderSnapshot.data(),
+      } as OrderDocument;
 
       if (order.status !== 'READY') {
         throw new BadRequestException(
@@ -1168,12 +1603,40 @@ export class OrdersService {
         );
       }
 
+      if (
+        !partner?.zoneId ||
+        partner.zoneId !== order.deliveryAddress.zoneId
+      ) {
+        throw new ForbiddenException(
+          'Order is outside your delivery zone',
+        );
+      }
+
       transaction.update(orderRef, {
         riderId,
         status: 'RIDER_ASSIGNED',
         updatedAt,
       });
+
+      transaction.update(partnerRef, {
+        isAvailable: false,
+        updatedAt,
+      });
     });
+
+    const updatedOrderSnapshot = await orderRef.get();
+
+    if (updatedOrderSnapshot.exists) {
+      const updatedOrder = {
+        id: updatedOrderSnapshot.id,
+        ...updatedOrderSnapshot.data(),
+      } as OrderDocument;
+
+      await this.notifyCustomerDeliveryStatus(
+        updatedOrder,
+        'RIDER_ASSIGNED',
+      );
+    }
 
     return {
       success: true,
@@ -1227,6 +1690,18 @@ export class OrdersService {
       status,
       updatedAt,
     });
+
+    const updatedOrder: OrderDocument = {
+      ...order,
+      id: snapshot.id,
+      status,
+      updatedAt,
+    };
+
+    await this.notifyCustomerDeliveryStatus(
+      updatedOrder,
+      status,
+    );
 
     return {
       success: true,
@@ -1323,6 +1798,35 @@ export class OrdersService {
       deliveryOtpCreatedAt: null,
       updatedAt,
     });
+
+    const partnerRef = db
+      .collection('delivery_partners')
+      .doc(riderId);
+
+    const partnerSnapshot = await partnerRef.get();
+
+    if (partnerSnapshot.exists) {
+      const partner = partnerSnapshot.data();
+
+      await partnerRef.update({
+        isAvailable: partner?.isOnline === true,
+        updatedAt,
+      });
+    }
+
+    const deliveredOrder: OrderDocument = {
+      ...order,
+      id: snapshot.id,
+      status: 'DELIVERED',
+      deliveryOtp: null,
+      deliveryOtpCreatedAt: null,
+      updatedAt,
+    };
+
+    await this.notifyCustomerDeliveryStatus(
+      deliveredOrder,
+      'DELIVERED',
+    );
 
     return {
       success: true,
