@@ -10,6 +10,9 @@ interface Zone {
   name?: string;
   city?: string;
   state?: string;
+  centerLatitude?: number;
+  centerLongitude?: number;
+  radiusKm?: number;
   isActive?: boolean;
   createdAt?: string;
   updatedAt?: string;
@@ -24,6 +27,12 @@ export default function ZonesPage() {
   const [name, setName] = useState("");
   const [city, setCity] = useState("");
   const [state, setState] = useState("");
+  const [centerLatitude, setCenterLatitude] =
+    useState("");
+  const [centerLongitude, setCenterLongitude] =
+    useState("");
+  const [radiusKm, setRadiusKm] =
+    useState("");
 
   const [editingZone, setEditingZone] = useState<Zone | null>(null);
 
@@ -84,6 +93,9 @@ export default function ZonesPage() {
     setName("");
     setCity("");
     setState("");
+    setCenterLatitude("");
+    setCenterLongitude("");
+    setRadiusKm("");
     setEditingZone(null);
   };
 
@@ -100,10 +112,49 @@ export default function ZonesPage() {
       setError("");
       setMessage("");
 
+      const latitude = Number(centerLatitude);
+      const longitude = Number(centerLongitude);
+      const radius = Number(radiusKm);
+
+      if (
+        !Number.isFinite(latitude) ||
+        latitude < -90 ||
+        latitude > 90
+      ) {
+        setError(
+          "Latitude must be between -90 and 90.",
+        );
+        return;
+      }
+
+      if (
+        !Number.isFinite(longitude) ||
+        longitude < -180 ||
+        longitude > 180
+      ) {
+        setError(
+          "Longitude must be between -180 and 180.",
+        );
+        return;
+      }
+
+      if (
+        !Number.isFinite(radius) ||
+        radius <= 0
+      ) {
+        setError(
+          "Radius must be greater than 0.",
+        );
+        return;
+      }
+
       const body = {
         name: name.trim(),
         city: city.trim(),
         state: state.trim(),
+        centerLatitude: latitude,
+        centerLongitude: longitude,
+        radiusKm: radius,
       };
 
       if (editingZone) {
@@ -140,6 +191,15 @@ export default function ZonesPage() {
     setName(zone.name ?? "");
     setCity(zone.city ?? "");
     setState(zone.state ?? "");
+    setCenterLatitude(
+      zone.centerLatitude?.toString() ?? "",
+    );
+    setCenterLongitude(
+      zone.centerLongitude?.toString() ?? "",
+    );
+    setRadiusKm(
+      zone.radiusKm?.toString() ?? "",
+    );
     setError("");
     setMessage("");
 
@@ -239,6 +299,40 @@ export default function ZonesPage() {
               value={state}
               onChange={(event) => setState(event.target.value)}
               placeholder="State"
+              className="rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-gray-500"
+            />
+
+            <input
+              type="number"
+              step="any"
+              value={centerLatitude}
+              onChange={(event) =>
+                setCenterLatitude(event.target.value)
+              }
+              placeholder="Center latitude"
+              className="rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-gray-500"
+            />
+
+            <input
+              type="number"
+              step="any"
+              value={centerLongitude}
+              onChange={(event) =>
+                setCenterLongitude(event.target.value)
+              }
+              placeholder="Center longitude"
+              className="rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-gray-500"
+            />
+
+            <input
+              type="number"
+              step="any"
+              min="0.1"
+              value={radiusKm}
+              onChange={(event) =>
+                setRadiusKm(event.target.value)
+              }
+              placeholder="Radius (km)"
               className="rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-gray-500"
             />
 

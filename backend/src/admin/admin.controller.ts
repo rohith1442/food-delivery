@@ -79,6 +79,15 @@ export class AdminController {
   ) {
     return this.adminService.updateUserStatus(uid, isActive);
   }
+
+  @Patch('users/:uid/delivery-zone')
+  async assignDeliveryZone(
+    @Param('uid') uid: string,
+    @Body('zoneId') zoneId: string,
+  ) {
+    return this.adminService.assignDeliveryZone(uid, zoneId);
+  }
+
   @Get('orders/:orderId')
   async getOrder(@Param('orderId') orderId: string) {
     return this.adminService.getOrder(orderId);

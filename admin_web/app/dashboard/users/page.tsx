@@ -21,6 +21,18 @@ interface User {
   status?: string;
   isActive?: boolean;
   createdAt?: string;
+
+  zoneId?: string | null;
+  isOnline?: boolean;
+  isAvailable?: boolean;
+}
+
+interface Zone {
+  id: string;
+  name?: string;
+  city?: string;
+  state?: string;
+  isActive?: boolean;
 }
 
 type RoleFilter =
@@ -41,6 +53,12 @@ const roleFilters: {
 
 export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([]);
+  const [zones, setZones] = useState<Zone[]>([]);
+  const [selectedZones, setSelectedZones] = useState<
+    Record<string, string>
+  >({});
+  const [assigningZoneUid, setAssigningZoneUid] =
+    useState<string | null>(null);
   const [roleFilter, setRoleFilter] =
     useState<RoleFilter>("ALL");
 
@@ -75,9 +93,31 @@ export default function UsersPage() {
     }
   }, []);
 
+  const loadZones = useCallback(async () => {
+    try {
+      const response = await api.get<Zone[]>(
+        "/admin/zones",
+      );
+
+      setZones(
+        response.data.filter(
+          (zone) => zone.isActive === true,
+        ),
+      );
+    } catch (error) {
+      console.error(
+        "Unable to load delivery zones",
+        error,
+      );
+    }
+  }, []);
+
   useEffect(() => {
-    void loadUsers();
-  }, [loadUsers]);
+    void Promise.all([
+      loadUsers(),
+      loadZones(),
+    ]);
+  }, [loadUsers, loadZones]);
 
   const filteredUsers = useMemo(() => {
     return users.filter((user) => {
@@ -185,6 +225,51 @@ export default function UsersPage() {
     }
   };
 
+  const handleAssignZone = async (
+    user: User,
+  ) => {
+    const uid = user.uid ?? user.id;
+
+    const zoneId = selectedZones[uid];
+
+    if (!zoneId) {
+      setError("Please select a delivery zone.");
+      return;
+    }
+
+    try {
+      setAssigningZoneUid(uid);
+      setError("");
+      setMessage("");
+
+      await api.patch(
+        `/admin/users/${uid}/delivery-zone`,
+        {
+          zoneId,
+        },
+      );
+
+      setMessage(
+        "Delivery zone assigned successfully.",
+      );
+
+      await loadUsers();
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        setError(
+          error.response?.data?.message ??
+            "Unable to assign delivery zone.",
+        );
+      } else {
+        setError(
+          "Unable to assign delivery zone.",
+        );
+      }
+    } finally {
+      setAssigningZoneUid(null);
+    }
+  };
+
   return (
     <main className="p-8">
       <div className="mx-auto max-w-7xl">
@@ -289,6 +374,10 @@ export default function UsersPage() {
                       Joined
                     </th>
 
+                    <th className="px-6 py-4">
+                      Delivery Zone
+                    </th>
+
                     <th className="px-6 py-4 text-right">
                       Action
                     </th>
@@ -353,6 +442,115 @@ export default function UsersPage() {
                         <td className="px-6 py-4 text-sm text-gray-500">
                           {formatDate(
                             user.createdAt,
+                          )}
+                        </td>
+
+                        <td className="px-6 py-4">
+                          {user.role?.toUpperCase() ===
+                          "DELIVERY" ? (
+                            <div className="min-w-[220px]">
+                              <div className="mb-2 text-xs text-gray-500">
+                                Current:{" "}
+                                <span className="font-medium text-gray-700">
+                                  {user.zoneId
+                                    ? zones.find(
+                                        (zone) =>
+                                          zone.id ===
+                                          user.zoneId,
+                                      )?.name ??
+                                      user.zoneId
+                                    : "Not assigned"}
+                                </span>
+                              </div>
+
+                              {user.status?.toUpperCase() ===
+                                "ACTIVE" &&
+                                user.isActive === true && (
+                                  <div className="flex gap-2">
+                                    <select
+                                      value={
+                                        selectedZones[
+                                          user.uid ?? user.id
+                                        ] ??
+                                        user.zoneId ??
+                                        ""
+                                      }
+                                      onChange={(event) => {
+                                        const uid =
+                                          user.uid ??
+                                          user.id;
+
+                                        setSelectedZones(
+                                          (current) => ({
+                                            ...current,
+                                            [uid]:
+                                              event.target.value,
+                                          }),
+                                        );
+                                      }}
+                                      className="min-w-0 flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                                    >
+                                      <option value="">
+                                        Select zone
+                                      </option>
+
+                                      {zones.map((zone) => (
+                                        <option
+                                          key={zone.id}
+                                          value={zone.id}
+                                        >
+                                          {zone.name ??
+                                            zone.id}
+                                          {zone.city
+                                            ? ` - ${zone.city}`
+                                            : ""}
+                                        </option>
+                                      ))}
+                                    </select>
+
+                                    <button
+                                      type="button"
+                                      disabled={
+                                        assigningZoneUid ===
+                                        (user.uid ??
+                                          user.id)
+                                      }
+                                      onClick={() =>
+                                        void handleAssignZone(
+                                          user,
+                                        )
+                                      }
+                                      className="rounded-lg bg-gray-900 px-3 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
+                                    >
+                                      {assigningZoneUid ===
+                                      (user.uid ??
+                                        user.id)
+                                        ? "Saving..."
+                                        : user.zoneId
+                                          ? "Change"
+                                          : "Assign"}
+                                    </button>
+                                  </div>
+                                )}
+
+                              <div className="mt-2 text-xs">
+                                {user.isOnline ? (
+                                  <span className="font-medium text-green-600">
+                                    ● Online
+                                    {!user.isAvailable &&
+                                      " • Busy"}
+                                  </span>
+                                ) : (
+                                  <span className="text-gray-500">
+                                    ● Offline
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          ) : (
+                            <span className="text-gray-400">
+                              —
+                            </span>
                           )}
                         </td>
 
