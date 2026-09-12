@@ -41,6 +41,7 @@ class _HomePageState extends State<HomePage> {
 
   String? _storesError;
 
+  List<Map<String, dynamic>> _modules = [];
   List<Map<String, dynamic>> _foodStores = [];
   List<Map<String, dynamic>> _groceryStores = [];
   List<Map<String, dynamic>> _foodCategories = [];
@@ -117,6 +118,7 @@ class _HomePageState extends State<HomePage> {
       }
 
       setState(() {
+        _modules = [];
         _foodStores = [];
         _groceryStores = [];
         _foodCategories = [];
@@ -132,6 +134,7 @@ class _HomePageState extends State<HomePage> {
     });
 
     try {
+      final modulesFuture = _storesApiService.getModules();
       final homeConfig = HomeConfigController.instance.config;
       final foodEnabled = homeConfig.moduleEnabled('food');
       final groceryEnabled = homeConfig.moduleEnabled('grocery');
@@ -159,6 +162,7 @@ class _HomePageState extends State<HomePage> {
           : Future.value(<Map<String, dynamic>>[]);
 
       final results = await Future.wait([
+        modulesFuture,
         foodStoresFuture,
         groceryStoresFuture,
         foodCategoriesFuture,
@@ -170,10 +174,11 @@ class _HomePageState extends State<HomePage> {
       }
 
       setState(() {
-        _foodStores = results[0];
-        _groceryStores = results[1];
-        _foodCategories = results[2];
-        _groceryCategories = results[3];
+        _modules = results[0];
+        _foodStores = results[1];
+        _groceryStores = results[2];
+        _foodCategories = results[3];
+        _groceryCategories = results[4];
         _isLoadingStores = false;
       });
     } catch (error, stackTrace) {
@@ -186,6 +191,7 @@ class _HomePageState extends State<HomePage> {
       }
 
       setState(() {
+        _modules = [];
         _foodStores = [];
         _groceryStores = [];
         _foodCategories = [];
@@ -289,8 +295,30 @@ class _HomePageState extends State<HomePage> {
         break;
 
       case 'CATEGORY':
-        if (promo.actionValue.isNotEmpty) {
-          _openRestaurants(moduleId: 'food', category: promo.actionValue);
+        final value = promo.actionValue.trim();
+
+        if (value.isEmpty) {
+          break;
+        }
+
+        final separatorIndex = value.indexOf(':');
+
+        if (separatorIndex <= 0) {
+          _openRestaurants(moduleId: 'food', category: value);
+
+          break;
+        }
+
+        final moduleId = value
+            .substring(0, separatorIndex)
+            .trim()
+            .toLowerCase();
+
+        final category = value.substring(separatorIndex + 1).trim();
+
+        if ((moduleId == 'food' || moduleId == 'grocery') &&
+            category.isNotEmpty) {
+          _openRestaurants(moduleId: moduleId, category: category);
         }
         break;
 
@@ -430,9 +458,17 @@ class _HomePageState extends State<HomePage> {
   }
 
   List<Widget> _buildModulesSlivers(HomeConfig config) {
-    final modules = config.enabledModules
-        .where((module) => module == 'food' || module == 'grocery')
-        .toList();
+    final modules =
+        _modules.where((module) {
+          final id = module['id']?.toString() ?? '';
+
+          return config.moduleEnabled(id);
+        }).toList()..sort((a, b) {
+          final aOrder = int.tryParse(a['sortOrder']?.toString() ?? '') ?? 999;
+          final bOrder = int.tryParse(b['sortOrder']?.toString() ?? '') ?? 999;
+
+          return aOrder.compareTo(bOrder);
+        });
 
     if (modules.isEmpty) {
       return [];
@@ -448,16 +484,17 @@ class _HomePageState extends State<HomePage> {
                 if (index > 0) const SizedBox(width: 12),
                 Expanded(
                   child: ModuleCard(
-                    title: modules[index] == 'food' ? 'Food' : 'Grocery',
-                    subtitle: modules[index] == 'food'
-                        ? 'Restaurants & meals'
-                        : 'Daily essentials',
-                    icon: modules[index] == 'food'
+                    title: modules[index]['name']?.toString() ?? '',
+                    subtitle: modules[index]['description']?.toString() ?? '',
+                    imageUrl: modules[index]['imageUrl']?.toString() ?? '',
+                    icon: modules[index]['id'] == 'food'
                         ? Icons.restaurant
                         : Icons.shopping_basket,
-                    highlighted: modules[index] == 'food',
+                    highlighted: index == 0,
                     onTap: () {
-                      _openRestaurants(moduleId: modules[index]);
+                      _openRestaurants(
+                        moduleId: modules[index]['id'].toString(),
+                      );
                     },
                   ),
                 ),

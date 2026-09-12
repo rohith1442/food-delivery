@@ -6,6 +6,21 @@ class StoresApiService {
 
   final ApiClient _apiClient;
 
+  Future<List<Map<String, dynamic>>> getModules() async {
+    final response = await _apiClient.get('/modules');
+
+    final data = response.data;
+
+    if (data is! List) {
+      return [];
+    }
+
+    return data
+        .whereType<Map>()
+        .map((item) => Map<String, dynamic>.from(item))
+        .toList();
+  }
+
   Future<List<Map<String, dynamic>>> getStores({
     String? moduleId,
     String? zoneId,

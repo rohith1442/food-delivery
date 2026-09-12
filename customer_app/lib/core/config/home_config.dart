@@ -83,10 +83,12 @@ class HomeConfig {
       return fallback;
     }
 
-    final modules = (json['enabledModules'] as List<dynamic>?)
-        ?.map((module) => module.toString())
-        .where((module) => module.isNotEmpty)
-        .toList();
+    final modules = json['enabledModules'] is List
+        ? (json['enabledModules'] as List)
+              .map((module) => module.toString())
+              .where((module) => module == 'food' || module == 'grocery')
+              .toList()
+        : null;
 
     final sections = (json['sections'] as List<dynamic>?)
         ?.whereType<Map>()
@@ -102,9 +104,7 @@ class HomeConfig {
         : null;
 
     return HomeConfig(
-      enabledModules: modules == null || modules.isEmpty
-          ? fallback.enabledModules
-          : modules,
+      enabledModules: modules ?? fallback.enabledModules,
       sections: sections == null || sections.isEmpty
           ? fallback.sections
           : sections,

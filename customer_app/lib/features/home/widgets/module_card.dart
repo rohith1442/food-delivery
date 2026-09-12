@@ -6,6 +6,7 @@ class ModuleCard extends StatelessWidget {
     required this.title,
     required this.subtitle,
     required this.icon,
+    required this.imageUrl,
     required this.onTap,
     required this.highlighted,
   });
@@ -13,6 +14,7 @@ class ModuleCard extends StatelessWidget {
   final String title;
   final String subtitle;
   final IconData icon;
+  final String imageUrl;
   final VoidCallback onTap;
   final bool highlighted;
 
@@ -35,7 +37,16 @@ class ModuleCard extends StatelessWidget {
                 backgroundColor: highlighted
                     ? Colors.white.withValues(alpha: 0.18)
                     : primary.withValues(alpha: 0.12),
-                child: Icon(icon, color: highlighted ? Colors.white : primary),
+                child: imageUrl.isNotEmpty
+                    ? Image.network(
+                        imageUrl,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, _, _) => Icon(
+                          icon,
+                          color: highlighted ? Colors.white : primary,
+                        ),
+                      )
+                    : Icon(icon, color: highlighted ? Colors.white : primary),
               ),
               const SizedBox(height: 14),
               Text(

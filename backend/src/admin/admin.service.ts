@@ -4,6 +4,8 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 
+import { randomUUID } from 'node:crypto';
+
 import { FirebaseService } from '../firebase/firebase.service.js';
 
 interface UserDocument {
@@ -24,6 +26,7 @@ interface ModuleDocument {
   description?: string;
   imageUrl?: string;
   isActive?: boolean;
+  sortOrder?: number;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -93,6 +96,30 @@ interface GlobalSettingsDocument {
   currencySymbol?: string;
   supportPhone?: string;
   deliveryPromiseText?: string;
+
+  home?: {
+    enabledModules?: string[];
+    sections?: Array<{
+      id:
+        | 'modules'
+        | 'promo'
+        | 'categories'
+        | 'nearby';
+      enabled: boolean;
+      sortOrder: number;
+    }>;
+    promoBanner?: {
+      enabled?: boolean;
+      title?: string;
+      subtitle?: string;
+      imageUrl?: string;
+      actionType?:
+        | 'NONE'
+        | 'MODULE'
+        | 'CATEGORY';
+      actionValue?: string;
+    };
+  };
 
   updatedAt?: string;
 }
@@ -771,6 +798,119 @@ export class AdminService {
       updatedAt,
     };
   }
+
+  async updateModuleOrder(
+    moduleId: string,
+    sortOrder: number,
+  ) {
+    if (
+      typeof sortOrder !== 'number' ||
+      !Number.isInteger(sortOrder) ||
+      sortOrder < 1
+    ) {
+      throw new BadRequestException(
+        'sortOrder must be an integer greater than 0',
+      );
+    }
+
+    const db = this.firebaseService.getFirestore();
+    const moduleRef = db.collection('modules').doc(moduleId);
+    const snapshot = await moduleRef.get();
+
+    if (!snapshot.exists) {
+      throw new NotFoundException('Module not found');
+    }
+
+    const updatedAt = new Date().toISOString();
+
+    await moduleRef.update({
+      sortOrder,
+      updatedAt,
+    });
+
+    return {
+      success: true,
+      id: moduleId,
+      sortOrder,
+      updatedAt,
+    };
+  }
+
+  async uploadModuleImage(
+    moduleId: string,
+    file: Express.Multer.File,
+  ) {
+    const normalizedModuleId = moduleId?.trim();
+
+    if (!normalizedModuleId) {
+      throw new BadRequestException('Module ID is required');
+    }
+
+    if (!file) {
+      throw new BadRequestException('Image file is required');
+    }
+
+    const allowedMimeTypes = [
+      'image/jpeg',
+      'image/png',
+      'image/webp',
+    ];
+
+    if (!allowedMimeTypes.includes(file.mimetype)) {
+      throw new BadRequestException(
+        'Only JPG, PNG and WEBP images are allowed',
+      );
+    }
+
+    const db = this.firebaseService.getFirestore();
+    const moduleRef = db.collection('modules').doc(normalizedModuleId);
+    const moduleSnapshot = await moduleRef.get();
+
+    if (!moduleSnapshot.exists) {
+      throw new NotFoundException('Module not found');
+    }
+
+    const extension =
+      file.mimetype === 'image/png'
+        ? 'png'
+        : file.mimetype === 'image/webp'
+          ? 'webp'
+          : 'jpg';
+
+    const fileName =
+      `modules/${normalizedModuleId}/${randomUUID()}.${extension}`;
+    const bucket = this.firebaseService.getStorage().bucket();
+    const storageFile = bucket.file(fileName);
+    const downloadToken = randomUUID();
+
+    await storageFile.save(file.buffer, {
+      metadata: {
+        contentType: file.mimetype,
+        metadata: {
+          firebaseStorageDownloadTokens: downloadToken,
+        },
+      },
+      resumable: false,
+    });
+
+    const encodedPath = encodeURIComponent(fileName);
+    const imageUrl =
+      `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodedPath}?alt=media&token=${downloadToken}`;
+    const updatedAt = new Date().toISOString();
+
+    await moduleRef.update({
+      imageUrl,
+      updatedAt,
+    });
+
+    return {
+      success: true,
+      moduleId: normalizedModuleId,
+      imageUrl,
+      updatedAt,
+      path: fileName,
+    };
+  }
   async getDashboard() {
     const db = this.firebaseService.getFirestore();
 
@@ -1039,6 +1179,56 @@ export class AdminService {
       Object.assign(updates, {
         [field]: value.trim().toUpperCase(),
       });
+    }
+
+    if (data.home !== undefined) {
+      const allowedModules = ['food', 'grocery'];
+
+      const enabledModules =
+        data.home.enabledModules?.filter((module) =>
+          allowedModules.includes(module.trim().toLowerCase()),
+        ) ?? [];
+
+      const allowedSections = [
+        'modules',
+        'promo',
+        'categories',
+        'nearby',
+      ];
+
+      const sections =
+        data.home.sections
+          ?.filter((section) => allowedSections.includes(section.id))
+          .map((section) => ({
+            id: section.id,
+            enabled: section.enabled === true,
+            sortOrder:
+              Number.isFinite(section.sortOrder) &&
+              section.sortOrder > 0
+                ? section.sortOrder
+                : 1,
+          })) ?? [];
+
+      const promoBanner = data.home.promoBanner ?? {};
+
+      updates.home = {
+        enabledModules,
+        sections,
+        promoBanner: {
+          enabled: promoBanner.enabled !== false,
+          title: promoBanner.title?.trim() ?? 'Fresh deals for you',
+          subtitle:
+            promoBanner.subtitle?.trim() ??
+            'Order your favourites today',
+          imageUrl: promoBanner.imageUrl?.trim() ?? '',
+          actionType:
+            promoBanner.actionType === 'MODULE' ||
+            promoBanner.actionType === 'CATEGORY'
+              ? promoBanner.actionType
+              : 'NONE',
+          actionValue: promoBanner.actionValue?.trim() ?? '',
+        },
+      };
     }
 
     updates.updatedAt = new Date().toISOString();

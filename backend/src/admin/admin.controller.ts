@@ -6,8 +6,12 @@ import {
   Patch,
   Post,
   Query,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+
+import { FileInterceptor } from '@nestjs/platform-express';
 
 import { AuthGuard } from '../auth/auth.guard.js';
 import { Roles } from '../auth/roles.decorator.js';
@@ -150,6 +154,31 @@ async updateZone(
   ) {
     return this.adminService.updateModuleStatus(moduleId, isActive);
   }
+
+  @Patch('modules/:moduleId/order')
+  async updateModuleOrder(
+    @Param('moduleId') moduleId: string,
+    @Body('sortOrder') sortOrder: number,
+  ) {
+    return this.adminService.updateModuleOrder(moduleId, sortOrder);
+  }
+
+  @Post('modules/:moduleId/image')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: {
+        fileSize: 5 * 1024 * 1024,
+      },
+    }),
+  )
+  async uploadModuleImage(
+    @Param('moduleId') moduleId: string,
+    @UploadedFile()
+    file: Express.Multer.File,
+  ) {
+    return this.adminService.uploadModuleImage(moduleId, file);
+  }
+
   @Get('dashboard')
   async getDashboard() {
     return this.adminService.getDashboard();
@@ -188,6 +217,30 @@ async updateSettings(
     currencySymbol?: string;
     supportPhone?: string;
     deliveryPromiseText?: string;
+
+    home?: {
+      enabledModules?: string[];
+      sections?: Array<{
+        id:
+          | 'modules'
+          | 'promo'
+          | 'categories'
+          | 'nearby';
+        enabled: boolean;
+        sortOrder: number;
+      }>;
+      promoBanner?: {
+        enabled?: boolean;
+        title?: string;
+        subtitle?: string;
+        imageUrl?: string;
+        actionType?:
+          | 'NONE'
+          | 'MODULE'
+          | 'CATEGORY';
+        actionValue?: string;
+      };
+    };
   },
 ) {
   return this.adminService.updateSettings(body);

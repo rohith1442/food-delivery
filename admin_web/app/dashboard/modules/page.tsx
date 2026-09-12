@@ -16,6 +16,7 @@ interface Module {
   description?: string;
   imageUrl?: string;
   isActive?: boolean;
+  sortOrder?: number;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -125,6 +126,31 @@ export default function ModulesPage() {
     }
   };
 
+  const updateModuleOrder = async (module: Module) => {
+    try {
+      setActionId(module.id);
+      setError("");
+
+      await api.patch(
+        `/admin/modules/${module.id}/order`,
+        {
+          sortOrder: module.sortOrder ?? 999,
+        },
+      );
+
+      await loadModules();
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        setError(
+          error.response?.data?.message ??
+            "Unable to update module order.",
+        );
+      }
+    } finally {
+      setActionId(null);
+    }
+  };
+
   return (
     <main className="p-8">
       <div className="mx-auto max-w-7xl">
@@ -194,6 +220,10 @@ export default function ModulesPage() {
                       Status
                     </th>
 
+                    <th className="px-6 py-4">
+                      Order
+                    </th>
+
                     <th className="px-6 py-4 text-right">
                       Action
                     </th>
@@ -244,6 +274,32 @@ export default function ModulesPage() {
                             module.isActive ===
                             true
                           }
+                        />
+                      </td>
+
+                      <td className="px-6 py-4">
+                        <input
+                          type="number"
+                          min={1}
+                          value={module.sortOrder ?? 999}
+                          onChange={(event) => {
+                            const value = Number(event.target.value);
+
+                            setModules((current) =>
+                              current.map((item) =>
+                                item.id === module.id
+                                  ? {
+                                      ...item,
+                                      sortOrder: value,
+                                    }
+                                  : item,
+                              ),
+                            );
+                          }}
+                          onBlur={() =>
+                            void updateModuleOrder(module)
+                          }
+                          className="w-20 rounded-lg border border-gray-300 px-3 py-2 text-sm"
                         />
                       </td>
 

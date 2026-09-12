@@ -849,8 +849,8 @@ export default function SettingsPage() {
                       value={settings.home.promoBanner.actionValue}
                       placeholder={
                         settings.home.promoBanner.actionType === "MODULE"
-                          ? "food"
-                          : "Biryani"
+                          ? "food or grocery"
+                          : "food:Biryani or grocery:Vegetables"
                       }
                       onChange={(value) =>
                         updatePromoField("actionValue", value)
