@@ -1,9 +1,111 @@
 import 'package:flutter/material.dart';
 
-class OrderDetailsPage extends StatelessWidget {
+import '../reviews/review_dialog.dart';
+import '../reviews/reviews_api_service.dart';
+
+class OrderDetailsPage extends StatefulWidget {
   const OrderDetailsPage({super.key, required this.order});
 
   final Map<String, dynamic> order;
+
+  @override
+  State<OrderDetailsPage> createState() => _OrderDetailsPageState();
+}
+
+class _OrderDetailsPageState extends State<OrderDetailsPage> {
+  final ReviewsApiService _reviewsApiService = ReviewsApiService();
+
+  bool _submittingReview = false;
+  bool _checkingReview = false;
+  Map<String, dynamic>? _review;
+
+  Map<String, dynamic> get order => widget.order;
+
+  @override
+  void initState() {
+    super.initState();
+
+    if (order['status']?.toString() == 'DELIVERED') {
+      _loadReview();
+    }
+  }
+
+  Future<void> _loadReview() async {
+    final orderId = order['id']?.toString() ?? '';
+
+    if (orderId.isEmpty) return;
+
+    setState(() {
+      _checkingReview = true;
+    });
+
+    try {
+      final review = await _reviewsApiService.getOrderReview(orderId);
+
+      if (!mounted) return;
+
+      setState(() {
+        _review = review;
+        _checkingReview = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+
+      setState(() {
+        _checkingReview = false;
+      });
+    }
+  }
+
+  Future<void> _rateOrder() async {
+    final storeName = order['storeName']?.toString() ?? 'Store';
+
+    final result = await showDialog<ReviewResult>(
+      context: context,
+      builder: (_) => ReviewDialog(storeName: storeName),
+    );
+
+    if (result == null) return;
+
+    final orderId = order['id']?.toString() ?? '';
+
+    if (orderId.isEmpty) return;
+
+    setState(() {
+      _submittingReview = true;
+    });
+
+    try {
+      final response = await _reviewsApiService.createReview(
+        orderId: orderId,
+        rating: result.rating,
+        comment: result.comment,
+      );
+
+      if (!mounted) return;
+
+      final review = response['review'];
+
+      setState(() {
+        _review = review is Map ? Map<String, dynamic>.from(review) : null;
+        _submittingReview = false;
+      });
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Thanks for your review!')));
+    } catch (error) {
+      if (!mounted) return;
+
+      setState(() {
+        _submittingReview = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Unable to submit review: $error')),
+      );
+    }
+  }
 
   String _formatStatus(dynamic value) {
     final status = value?.toString() ?? '';
@@ -320,7 +422,24 @@ class OrderDetailsPage extends StatelessWidget {
               ),
             ),
 
-          if (isDelivered)
+          if (isDelivered) ...[
+            if (_checkingReview)
+              const Center(child: CircularProgressIndicator())
+            else if (_review == null)
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: FilledButton.icon(
+                  onPressed: _submittingReview ? null : _rateOrder,
+                  icon: const Icon(Icons.star_outline),
+                  label: Text(
+                    _submittingReview ? 'Submitting...' : 'Rate your order',
+                  ),
+                ),
+              )
+            else
+              _ExistingReviewCard(review: _review!),
+            const SizedBox(height: 12),
             SizedBox(
               width: double.infinity,
               height: 52,
@@ -336,7 +455,52 @@ class OrderDetailsPage extends StatelessWidget {
                 label: const Text('Reorder'),
               ),
             ),
+          ],
         ],
+      ),
+    );
+  }
+}
+
+class _ExistingReviewCard extends StatelessWidget {
+  const _ExistingReviewCard({required this.review});
+
+  final Map<String, dynamic> review;
+
+  @override
+  Widget build(BuildContext context) {
+    final rating = review['rating'] is num
+        ? (review['rating'] as num).toInt()
+        : 0;
+    final comment = review['comment']?.toString().trim() ?? '';
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Your Review',
+              style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: List.generate(
+                5,
+                (index) => Icon(
+                  index < rating ? Icons.star : Icons.star_border,
+                  color: Colors.amber,
+                  size: 22,
+                ),
+              ),
+            ),
+            if (comment.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(comment),
+            ],
+          ],
+        ),
       ),
     );
   }

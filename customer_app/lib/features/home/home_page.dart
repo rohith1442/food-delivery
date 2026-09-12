@@ -10,6 +10,7 @@ import '../profile/profile_page.dart';
 import '../restaurants/menu_page.dart';
 import '../restaurants/restaurants_page.dart';
 import '../restaurants/stores_api_service.dart';
+import '../search/search_page.dart';
 import 'widgets/home_header.dart';
 import 'widgets/home_category_item.dart';
 import 'widgets/home_search_bar.dart';
@@ -339,11 +340,16 @@ class _HomePageState extends State<HomePage> {
     }
 
     if (index == 1) {
-      setState(() {
-        selectedIndex = 1;
-      });
+      final zoneId = _selectedZoneId;
 
-      FocusScope.of(context).requestFocus(FocusNode());
+      if (zoneId == null || zoneId.isEmpty) {
+        _showMessage('Please select your delivery location first.');
+
+        return;
+      }
+
+      Navigator.of(context)
+          .push(MaterialPageRoute(builder: (_) => SearchPage(zoneId: zoneId)));
 
       return;
     }

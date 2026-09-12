@@ -28,6 +28,8 @@ export interface StoreDocument {
   longitude: number | null;
   minimumOrder: number;
   imageUrl: string | null;
+  ratingAverage: number;
+  ratingCount: number;
   isActive: boolean;
   isOpen: boolean;
   createdAt: string;
@@ -100,6 +102,8 @@ export class StoresService {
       longitude: data.longitude ?? null,
       minimumOrder: data.minimumOrder ?? 0,
       imageUrl: null,
+      ratingAverage: 0,
+      ratingCount: 0,
       isActive: true,
       isOpen: true,
       createdAt: now,

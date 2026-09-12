@@ -17,6 +17,8 @@ import { UploadsModule } from './uploads/uploads.module.js';
 import { PaymentsModule } from './payments/payments.module.js';
 import { NotificationsModule } from './notifications/notifications.module.js';
 import { ModulesModule } from './modules/modules.module.js';
+import { SearchModule } from './search/search.module.js';
+import { ReviewsModule } from './reviews/reviews.module.js';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -36,6 +38,8 @@ import { ModulesModule } from './modules/modules.module.js';
     PaymentsModule,
     NotificationsModule,
     ModulesModule,
+    SearchModule,
+    ReviewsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -6,6 +6,22 @@ class StoresApiService {
 
   final ApiClient _apiClient;
 
+  Future<Map<String, dynamic>> search({
+    required String zoneId,
+    required String query,
+  }) async {
+    final response = await _apiClient.get(
+      '/search',
+      queryParameters: {'zoneId': zoneId, 'q': query.trim()},
+    );
+
+    if (response.data is! Map) {
+      throw const FormatException('Invalid search response.');
+    }
+
+    return Map<String, dynamic>.from(response.data as Map);
+  }
+
   Future<List<Map<String, dynamic>>> getModules() async {
     final response = await _apiClient.get('/modules');
 

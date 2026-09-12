@@ -23,6 +23,12 @@ class StoreCard extends StatelessWidget {
     final isOpen = store['isOpen'] == true;
 
     final minimumOrder = _toNumber(store['minimumOrder']);
+    final ratingAverage = store['ratingAverage'] is num
+        ? (store['ratingAverage'] as num).toDouble()
+        : 0.0;
+    final ratingCount = store['ratingCount'] is num
+        ? (store['ratingCount'] as num).toInt()
+        : 0;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 14),
@@ -102,6 +108,21 @@ class StoreCard extends StatelessWidget {
                         ],
                       ],
                     ),
+                    const SizedBox(height: 6),
+                    if (ratingCount > 0)
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.star, size: 16, color: Colors.amber),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${ratingAverage.toStringAsFixed(1)} ($ratingCount)',
+                            style: const TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                        ],
+                      )
+                    else
+                      const Text('New', style: TextStyle(fontSize: 12)),
                   ],
                 ),
               ),
