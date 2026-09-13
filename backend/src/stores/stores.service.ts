@@ -18,6 +18,16 @@ export interface CreateStoreRequest {
   minimumOrder?: number;
 }
 
+export interface UpdateStoreRequest {
+  name?: string;
+  moduleId?: string;
+  zoneId?: string;
+  address?: string;
+  latitude?: number;
+  longitude?: number;
+  minimumOrder?: number;
+}
+
 export interface StoreDocument {
   id: string;
   merchantId: string;
@@ -234,6 +244,95 @@ export class StoresService {
       storeId,
       isOpen,
       updatedAt,
+    };
+  }
+
+  async updateStore(
+    merchantId: string,
+    storeId: string,
+    data: UpdateStoreRequest,
+  ) {
+    const db = this.firebaseService.getFirestore();
+    const storeRef = db.collection('stores').doc(storeId);
+    const snapshot = await storeRef.get();
+
+    if (!snapshot.exists) {
+      throw new NotFoundException('Store not found');
+    }
+
+    const store = snapshot.data() as StoreDocument;
+    if (store.merchantId !== merchantId) {
+      throw new ForbiddenException('You do not have access to this store');
+    }
+
+    const update: Record<string, unknown> = {
+      updatedAt: new Date().toISOString(),
+    };
+
+    if (data.name !== undefined) {
+      if (!data.name.trim()) {
+        throw new BadRequestException('Store name is required');
+      }
+      update.name = data.name.trim();
+    }
+
+    if (data.moduleId !== undefined) {
+      if (!data.moduleId.trim()) {
+        throw new BadRequestException('Module is required');
+      }
+      update.moduleId = data.moduleId.trim();
+    }
+
+    if (data.zoneId !== undefined) {
+      if (!data.zoneId.trim()) {
+        throw new BadRequestException('Zone is required');
+      }
+      update.zoneId = data.zoneId.trim();
+    }
+
+    if (data.address !== undefined) {
+      if (!data.address.trim()) {
+        throw new BadRequestException('Store address is required');
+      }
+      update.address = data.address.trim();
+    }
+
+    if (data.latitude !== undefined || data.longitude !== undefined) {
+      if (
+        typeof data.latitude !== 'number' ||
+        !Number.isFinite(data.latitude) ||
+        data.latitude < -90 ||
+        data.latitude > 90
+      ) {
+        throw new BadRequestException('Invalid latitude');
+      }
+
+      if (
+        typeof data.longitude !== 'number' ||
+        !Number.isFinite(data.longitude) ||
+        data.longitude < -180 ||
+        data.longitude > 180
+      ) {
+        throw new BadRequestException('Invalid longitude');
+      }
+
+      update.latitude = data.latitude;
+      update.longitude = data.longitude;
+    }
+
+    if (data.minimumOrder !== undefined) {
+      if (!Number.isFinite(data.minimumOrder) || data.minimumOrder < 0) {
+        throw new BadRequestException('Invalid minimum order');
+      }
+      update.minimumOrder = data.minimumOrder;
+    }
+
+    await storeRef.update(update);
+    const updated = await storeRef.get();
+
+    return {
+      success: true,
+      store: { id: updated.id, ...updated.data() },
     };
   }
 

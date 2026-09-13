@@ -29,6 +29,8 @@ class StoreApiService {
     required String moduleId,
     required String zoneId,
     required String address,
+    required double latitude,
+    required double longitude,
     required double minimumOrder,
   }) async {
     final response = await _apiClient.post(
@@ -38,6 +40,8 @@ class StoreApiService {
         'moduleId': moduleId,
         'zoneId': zoneId,
         'address': address,
+        'latitude': latitude,
+        'longitude': longitude,
         'minimumOrder': minimumOrder,
       },
     );
@@ -79,5 +83,18 @@ class StoreApiService {
       '/merchant/store/image',
       data: {'imageUrl': imageUrl},
     );
+  }
+
+  Future<Map<String, dynamic>> updateStore({
+    required String storeId,
+    required Map<String, dynamic> data,
+  }) async {
+    final response = await _apiClient.patch(
+      '/merchant/store/$storeId',
+      data: data,
+    );
+
+    final responseData = Map<String, dynamic>.from(response.data as Map);
+    return Map<String, dynamic>.from(responseData['store'] as Map);
   }
 }

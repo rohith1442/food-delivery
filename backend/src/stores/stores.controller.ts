@@ -97,4 +97,19 @@ export class StoresController {
       isOpen,
     );
   }
+
+  @Patch('merchant/store/:storeId')
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles('MERCHANT')
+  async updateStore(
+    @Req() request: any,
+    @Param('storeId') storeId: string,
+    @Body() body: any,
+  ) {
+    return this.storesService.updateStore(
+      request.user.uid,
+      storeId,
+      body,
+    );
+  }
 }

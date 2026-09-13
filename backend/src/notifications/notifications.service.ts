@@ -24,6 +24,29 @@ export class NotificationsService {
     private readonly firebaseService: FirebaseService,
   ) {}
 
+  async createNotification(
+    uid: string,
+    notification: PushNotification,
+  ) {
+    const db = this.firebaseService.getFirestore();
+    const ref = db
+      .collection('users')
+      .doc(uid)
+      .collection('notifications')
+      .doc();
+    const record = {
+      id: ref.id,
+      title: notification.title,
+      body: notification.body,
+      data: notification.data ?? {},
+      isRead: false,
+      createdAt: new Date().toISOString(),
+    };
+
+    await ref.set(record);
+    return record;
+  }
+
   async sendToToken(
     token: string,
     notification: PushNotification,
@@ -80,6 +103,8 @@ export class NotificationsService {
   notification: PushNotification,
 ): Promise<void> {
   try {
+    await this.createNotification(uid, notification);
+
     const db = this.firebaseService.getFirestore();
 
     const devicesSnapshot = await db
@@ -149,7 +174,61 @@ export class NotificationsService {
         : String(error),
     );
   }
-}
+  }
+
+  async getNotifications(uid: string) {
+    const snapshot = await this.firebaseService
+      .getFirestore()
+      .collection('users')
+      .doc(uid)
+      .collection('notifications')
+      .orderBy('createdAt', 'desc')
+      .limit(100)
+      .get();
+
+    return {
+      success: true,
+      notifications: snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      })),
+    };
+  }
+
+  async markNotificationRead(uid: string, notificationId: string) {
+    const ref = this.firebaseService
+      .getFirestore()
+      .collection('users')
+      .doc(uid)
+      .collection('notifications')
+      .doc(notificationId);
+    const snapshot = await ref.get();
+
+    if (!snapshot.exists) {
+      throw new NotFoundException('Notification not found');
+    }
+
+    await ref.update({isRead: true});
+    return {success: true};
+  }
+
+  async markAllNotificationsRead(uid: string) {
+    const db = this.firebaseService.getFirestore();
+    const snapshot = await db
+      .collection('users')
+      .doc(uid)
+      .collection('notifications')
+      .where('isRead', '==', false)
+      .get();
+    const batch = db.batch();
+
+    for (const doc of snapshot.docs) {
+      batch.update(doc.ref, {isRead: true});
+    }
+
+    await batch.commit();
+    return {success: true};
+  }
   async registerDeviceToken(
   uid: string,
   data: {

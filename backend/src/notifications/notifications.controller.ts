@@ -2,6 +2,9 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Get,
+  Param,
+  Patch,
   Post,
   Req,
   UseGuards,
@@ -36,6 +39,27 @@ export class NotificationsController {
     return this.notificationsService.registerDeviceToken(
       request.user.uid,
       body,
+    );
+  }
+
+  @Get()
+  async getNotifications(@Req() request: any) {
+    return this.notificationsService.getNotifications(request.user.uid);
+  }
+
+  @Patch('read-all')
+  async markAllRead(@Req() request: any) {
+    return this.notificationsService.markAllNotificationsRead(request.user.uid);
+  }
+
+  @Patch(':notificationId/read')
+  async markRead(
+    @Req() request: any,
+    @Param('notificationId') notificationId: string,
+  ) {
+    return this.notificationsService.markNotificationRead(
+      request.user.uid,
+      notificationId,
     );
   }
 }

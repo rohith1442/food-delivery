@@ -33,6 +33,8 @@ migrate_working_dir/
 /build/
 /coverage/
 
+/ios/Flutter/GoogleMaps.xcconfig
+
 # Symbolication related
 app.*.symbols
 

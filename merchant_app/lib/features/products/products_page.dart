@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../core/config/app_branding.dart';
+import '../../core/widgets/merchant_state_view.dart';
 import 'products_api_service.dart';
 
 class ProductsPage extends StatefulWidget {
@@ -278,32 +280,16 @@ class _ProductsPageState extends State<ProductsPage> {
 
   Widget _buildBody() {
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return const MerchantLoadingView(message: 'Loading products...');
     }
 
     if (_error != null) {
-      return ListView(
-        padding: const EdgeInsets.all(24),
-        children: [
-          const SizedBox(height: 100),
-          const Icon(Icons.error_outline, size: 56),
-          const SizedBox(height: 16),
-          const Text(
-            'Unable to load products',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 8),
-          Text(_error!, textAlign: TextAlign.center),
-          const SizedBox(height: 24),
-          Center(
-            child: FilledButton.icon(
-              onPressed: _loadData,
-              icon: const Icon(Icons.refresh),
-              label: const Text('Retry'),
-            ),
-          ),
-        ],
+      return MerchantStateView(
+        icon: Icons.error_outline,
+        title: 'Unable to load products',
+        message: _error,
+        actionLabel: 'Retry',
+        onAction: _loadData,
       );
     }
 
@@ -377,8 +363,8 @@ class _ProductsPageState extends State<ProductsPage> {
             leading: ClipRRect(
               borderRadius: BorderRadius.circular(10),
               child: SizedBox(
-                width: 60,
-                height: 60,
+                width: 82,
+                height: 82,
                 child: imageUrl.isNotEmpty
                     ? Image.network(
                         imageUrl,
@@ -400,18 +386,21 @@ class _ProductsPageState extends State<ProductsPage> {
             ),
             title: Text(
               product['name']?.toString() ?? 'Product',
-              style: const TextStyle(fontWeight: FontWeight.bold),
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
             ),
             subtitle: Padding(
               padding: const EdgeInsets.only(top: 6),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('${_categoryName(categoryId)} • ₹$price'),
+                  Text(
+                    '${_categoryName(categoryId)} • '
+                    '${AppBrandingController.instance.branding.currencySymbol}$price',
+                  ),
                   const SizedBox(height: 3),
                   Text('Stock: $stock'),
                   const SizedBox(height: 3),
-                  Text(available ? 'Available' : 'Unavailable'),
+                  _AvailabilityBadge(available: available),
                 ],
               ),
             ),
@@ -551,6 +540,33 @@ class _ProductsPageState extends State<ProductsPage> {
         else
           const SizedBox(height: 12),
       ],
+    );
+  }
+}
+
+class _AvailabilityBadge extends StatelessWidget {
+  const _AvailabilityBadge({required this.available});
+
+  final bool available;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = available ? const Color(0xFF16A34A) : const Color(0xFF6B7280);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        available ? 'Available' : 'Unavailable',
+        style: TextStyle(
+          color: color,
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
     );
   }
 }
@@ -1157,9 +1173,10 @@ class _ProductFormPageState extends State<ProductFormPage> {
               keyboardType: const TextInputType.numberWithOptions(
                 decimal: true,
               ),
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'Price',
-                prefixText: '₹ ',
+                prefixText:
+                    '${AppBrandingController.instance.branding.currencySymbol} ',
                 border: OutlineInputBorder(),
               ),
               validator: (value) {

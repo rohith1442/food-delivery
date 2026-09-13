@@ -1,19 +1,18 @@
 import 'package:flutter/material.dart';
 
+import '../../core/config/app_branding.dart';
+import '../../core/widgets/merchant_state_view.dart';
 import 'merchant_orders_api_service.dart';
 
 class MerchantOrdersPage extends StatefulWidget {
   const MerchantOrdersPage({super.key});
 
   @override
-  State<MerchantOrdersPage> createState() =>
-      _MerchantOrdersPageState();
+  State<MerchantOrdersPage> createState() => _MerchantOrdersPageState();
 }
 
-class _MerchantOrdersPageState
-    extends State<MerchantOrdersPage> {
-  final MerchantOrdersApiService _apiService =
-  MerchantOrdersApiService();
+class _MerchantOrdersPageState extends State<MerchantOrdersPage> {
+  final MerchantOrdersApiService _apiService = MerchantOrdersApiService();
 
   List<Map<String, dynamic>> _orders = [];
   bool _loading = true;
@@ -52,15 +51,9 @@ class _MerchantOrdersPageState
     }
   }
 
-  Future<void> _updateStatus(
-      String orderId,
-      String status,
-      ) async {
+  Future<void> _updateStatus(String orderId, String status) async {
     try {
-      await _apiService.updateStatus(
-        orderId: orderId,
-        status: status,
-      );
+      await _apiService.updateStatus(orderId: orderId, status: status);
 
       if (!mounted) return;
 
@@ -69,26 +62,16 @@ class _MerchantOrdersPageState
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Order marked as ${_displayStatus(status)}',
-          ),
-        ),
+        SnackBar(content: Text('Order marked as ${_displayStatus(status)}')),
       );
     } catch (error) {
-      debugPrint(
-        'UPDATE MERCHANT ORDER STATUS ERROR: $error',
-      );
+      debugPrint('UPDATE MERCHANT ORDER STATUS ERROR: $error');
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Failed to update order: $error',
-          ),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to update order: $error')));
     }
   }
 
@@ -114,15 +97,17 @@ class _MerchantOrdersPageState
       return '';
     }
 
-    return value.map((item) {
-      if (item is Map) {
-        final name = item['name'] ?? 'Item';
-        final quantity = item['quantity'] ?? 1;
-        return '$name × $quantity';
-      }
+    return value
+        .map((item) {
+          if (item is Map) {
+            final name = item['name'] ?? 'Item';
+            final quantity = item['quantity'] ?? 1;
+            return '$name × $quantity';
+          }
 
-      return item.toString();
-    }).join(', ');
+          return item.toString();
+        })
+        .join(', ');
   }
 
   String _formatTime(dynamic value) {
@@ -148,44 +133,23 @@ class _MerchantOrdersPageState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Orders'),
-      ),
+      appBar: AppBar(title: const Text('Orders')),
       body: _buildBody(),
     );
   }
 
   Widget _buildBody() {
     if (_loading) {
-      return const Center(
-        child: CircularProgressIndicator(),
-      );
+      return const MerchantLoadingView(message: 'Loading orders...');
     }
 
     if (_error != null) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(
-                Icons.error_outline,
-                size: 48,
-              ),
-              const SizedBox(height: 12),
-              Text(
-                _error!,
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 16),
-              FilledButton(
-                onPressed: _loadOrders,
-                child: const Text('Retry'),
-              ),
-            ],
-          ),
-        ),
+      return MerchantStateView(
+        icon: Icons.error_outline,
+        title: 'Unable to load orders',
+        message: _error,
+        actionLabel: 'Retry',
+        onAction: _loadOrders,
       );
     }
 
@@ -193,10 +157,13 @@ class _MerchantOrdersPageState
       return RefreshIndicator(
         onRefresh: _loadOrders,
         child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
           children: const [
             SizedBox(height: 180),
-            Center(
-              child: Text('No active orders'),
+            MerchantStateView(
+              icon: Icons.receipt_long_outlined,
+              title: 'No active orders',
+              message: 'New customer orders will appear here.',
             ),
           ],
         ),
@@ -211,50 +178,38 @@ class _MerchantOrdersPageState
         itemBuilder: (context, index) {
           final order = _orders[index];
 
-          final orderId =
-              order['id']?.toString() ?? '';
+          final orderId = order['id']?.toString() ?? '';
 
-          final status =
-              order['status']?.toString() ?? '';
+          final shortOrderId = orderId.length > 8
+              ? orderId.substring(orderId.length - 8)
+              : orderId;
 
-          final total =
-              order['total'] ?? 0;
+          final status = order['status']?.toString() ?? '';
 
-          final items =
-          _formatItems(order['items']);
+          final total = order['total'] ?? 0;
 
-          final time =
-          _formatTime(order['createdAt']);
+          final items = _formatItems(order['items']);
+
+          final time = _formatTime(order['createdAt']);
 
           return _OrderCard(
             orderId: orderId,
+            shortOrderId: shortOrderId,
             status: _displayStatus(status),
             items: items,
             total: total,
             time: time,
             onAccept: () {
-              _updateStatus(
-                orderId,
-                'ACCEPTED',
-              );
+              _updateStatus(orderId, 'ACCEPTED');
             },
             onReject: () {
-              _updateStatus(
-                orderId,
-                'REJECTED',
-              );
+              _updateStatus(orderId, 'REJECTED');
             },
             onPrepare: () {
-              _updateStatus(
-                orderId,
-                'PREPARING',
-              );
+              _updateStatus(orderId, 'PREPARING');
             },
             onReady: () {
-              _updateStatus(
-                orderId,
-                'READY',
-              );
+              _updateStatus(orderId, 'READY');
             },
           );
         },
@@ -266,6 +221,7 @@ class _MerchantOrdersPageState
 class _OrderCard extends StatelessWidget {
   const _OrderCard({
     required this.orderId,
+    required this.shortOrderId,
     required this.status,
     required this.items,
     required this.total,
@@ -277,6 +233,7 @@ class _OrderCard extends StatelessWidget {
   });
 
   final String orderId;
+  final String shortOrderId;
   final String status;
   final String items;
   final dynamic total;
@@ -293,54 +250,66 @@ class _OrderCard extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
-          crossAxisAlignment:
-          CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
                 Expanded(
                   child: Text(
-                    orderId,
+                    'Order #$shortOrderId',
                     style: const TextStyle(
                       fontSize: 17,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                 ),
-                _StatusBadge(
-                  status: status,
-                ),
+                _StatusBadge(status: status),
               ],
             ),
             const SizedBox(height: 8),
-            Text(
-              time,
-              style: TextStyle(
-                color: Theme.of(context)
-                    .colorScheme
-                    .onSurfaceVariant,
-              ),
+            Row(
+              children: [
+                Icon(
+                  Icons.schedule,
+                  size: 15,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  time,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 12),
-            Text(
-              items,
-              style: const TextStyle(
-                fontSize: 14,
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surfaceContainerLowest,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                items,
+                style: const TextStyle(
+                  height: 1.45,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ),
             const SizedBox(height: 12),
             Row(
-              mainAxisAlignment:
-              MainAxisAlignment.spaceBetween,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text(
                   'Order Total',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w500,
-                  ),
+                  style: TextStyle(fontWeight: FontWeight.w500),
                 ),
                 Text(
-                  '₹$total',
+                  '${AppBrandingController.instance.branding.currencySymbol}$total',
                   style: const TextStyle(
                     fontSize: 17,
                     fontWeight: FontWeight.bold,
@@ -423,9 +392,7 @@ class _ActionButtons extends StatelessWidget {
           width: double.infinity,
           child: OutlinedButton(
             onPressed: null,
-            child: Text(
-              'Waiting for Delivery Partner',
-            ),
+            child: Text('Waiting for Delivery Partner'),
           ),
         );
 
@@ -439,9 +406,7 @@ class _ActionButtons extends StatelessWidget {
 }
 
 class _StatusBadge extends StatelessWidget {
-  const _StatusBadge({
-    required this.status,
-  });
+  const _StatusBadge({required this.status});
 
   final String status;
 
@@ -450,18 +415,11 @@ class _StatusBadge extends StatelessWidget {
     final isRejected = status == 'Rejected';
 
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 10,
-        vertical: 6,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: isRejected
-            ? Theme.of(context)
-            .colorScheme
-            .errorContainer
-            : Theme.of(context)
-            .colorScheme
-            .primaryContainer,
+            ? Theme.of(context).colorScheme.errorContainer
+            : Theme.of(context).colorScheme.primaryContainer,
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
@@ -470,12 +428,8 @@ class _StatusBadge extends StatelessWidget {
           fontSize: 12,
           fontWeight: FontWeight.bold,
           color: isRejected
-              ? Theme.of(context)
-              .colorScheme
-              .error
-              : Theme.of(context)
-              .colorScheme
-              .primary,
+              ? Theme.of(context).colorScheme.error
+              : Theme.of(context).colorScheme.primary,
         ),
       ),
     );

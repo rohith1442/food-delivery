@@ -5,37 +5,25 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/network/api_client.dart';
 
-class MerchantRegisterPage
-    extends StatefulWidget {
-  const MerchantRegisterPage({
-    super.key,
-  });
+class MerchantRegisterPage extends StatefulWidget {
+  const MerchantRegisterPage({super.key});
 
   @override
-  State<MerchantRegisterPage>
-  createState() =>
-      _MerchantRegisterPageState();
+  State<MerchantRegisterPage> createState() => _MerchantRegisterPageState();
 }
 
-class _MerchantRegisterPageState
-    extends State<MerchantRegisterPage> {
-  final nameController =
-  TextEditingController();
+class _MerchantRegisterPageState extends State<MerchantRegisterPage> {
+  final nameController = TextEditingController();
 
-  final businessNameController =
-  TextEditingController();
+  final businessNameController = TextEditingController();
 
-  final emailController =
-  TextEditingController();
+  final emailController = TextEditingController();
 
-  final passwordController =
-  TextEditingController();
+  final passwordController = TextEditingController();
 
-  final confirmPasswordController =
-  TextEditingController();
+  final confirmPasswordController = TextEditingController();
 
-  final ApiClient apiClient =
-  ApiClient();
+  final ApiClient apiClient = ApiClient();
 
   bool loading = false;
   bool obscurePassword = true;
@@ -50,44 +38,34 @@ class _MerchantRegisterPageState
 
     super.dispose();
   }
+
   Future<void> _register() async {
-    final name =
-    nameController.text.trim();
+    final name = nameController.text.trim();
 
-    final businessName =
-    businessNameController.text.trim();
+    final businessName = businessNameController.text.trim();
 
-    final email =
-    emailController.text.trim();
+    final email = emailController.text.trim();
 
-    final password =
-        passwordController.text;
+    final password = passwordController.text;
 
-    final confirmPassword =
-        confirmPasswordController.text;
+    final confirmPassword = confirmPasswordController.text;
 
     if (name.isEmpty ||
         businessName.isEmpty ||
         email.isEmpty ||
         password.isEmpty ||
         confirmPassword.isEmpty) {
-      _showMessage(
-        'Please complete all fields',
-      );
+      _showMessage('Please complete all fields');
       return;
     }
 
     if (password.length < 6) {
-      _showMessage(
-        'Password must contain at least 6 characters',
-      );
+      _showMessage('Password must contain at least 6 characters');
       return;
     }
 
     if (password != confirmPassword) {
-      _showMessage(
-        'Passwords do not match',
-      );
+      _showMessage('Passwords do not match');
       return;
     }
 
@@ -98,26 +76,19 @@ class _MerchantRegisterPageState
     UserCredential? credential;
 
     try {
-      credential =
-      await FirebaseAuth.instance
-          .createUserWithEmailAndPassword(
+      credential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
 
       await apiClient.post(
         '/auth/register/merchant',
-        data: {
-          'name': name,
-          'businessName': businessName,
-        },
+        data: {'name': name, 'businessName': businessName},
       );
 
       if (!mounted) return;
 
-      context.go(
-        '/approval-pending',
-      );
+      context.go('/approval-pending');
     } on FirebaseAuthException catch (error) {
       if (!mounted) return;
 
@@ -125,24 +96,19 @@ class _MerchantRegisterPageState
 
       switch (error.code) {
         case 'email-already-in-use':
-          message =
-          'An account already exists with this email';
+          message = 'An account already exists with this email';
           break;
 
         case 'invalid-email':
-          message =
-          'Please enter a valid email';
+          message = 'Please enter a valid email';
           break;
 
         case 'weak-password':
-          message =
-          'Please use a stronger password';
+          message = 'Please use a stronger password';
           break;
 
         default:
-          message =
-              error.message ??
-                  'Registration failed';
+          message = error.message ?? 'Registration failed';
       }
 
       _showMessage(message);
@@ -159,13 +125,10 @@ class _MerchantRegisterPageState
 
       final data = error.response?.data;
 
-      String message =
-          'Merchant registration failed';
+      String message = 'Merchant registration failed';
 
-      if (data is Map &&
-          data['message'] != null) {
-        message =
-            data['message'].toString();
+      if (data is Map && data['message'] != null) {
+        message = data['message'].toString();
       }
 
       _showMessage(message);
@@ -180,9 +143,7 @@ class _MerchantRegisterPageState
 
       if (!mounted) return;
 
-      _showMessage(
-        'Unable to register. Please try again.',
-      );
+      _showMessage('Unable to register. Please try again.');
     } finally {
       if (mounted) {
         setState(() {
@@ -191,172 +152,101 @@ class _MerchantRegisterPageState
       }
     }
   }
+
   void _showMessage(String message) {
     ScaffoldMessenger.of(context)
-        .showSnackBar(
-      SnackBar(
-        content: Text(message),
-      ),
-    );
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'Merchant Registration',
-        ),
-      ),
+      appBar: AppBar(title: const Text('Merchant Registration')),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding:
-          const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(24),
           child: Center(
             child: ConstrainedBox(
-              constraints:
-              const BoxConstraints(
-                maxWidth: 420,
-              ),
+              constraints: const BoxConstraints(maxWidth: 420),
               child: Column(
                 children: [
                   TextField(
-                    controller:
-                    nameController,
-                    decoration:
-                    const InputDecoration(
-                      labelText:
-                      'Owner Name',
-                      prefixIcon: Icon(
-                        Icons.person_outline,
-                      ),
+                    controller: nameController,
+                    decoration: const InputDecoration(
+                      labelText: 'Owner Name',
+                      prefixIcon: Icon(Icons.person_outline),
                     ),
                   ),
-                  const SizedBox(
-                    height: 16,
-                  ),
+                  const SizedBox(height: 16),
                   TextField(
-                    controller:
-                    businessNameController,
-                    decoration:
-                    const InputDecoration(
-                      labelText:
-                      'Business Name',
-                      prefixIcon: Icon(
-                        Icons.storefront_outlined,
-                      ),
+                    controller: businessNameController,
+                    decoration: const InputDecoration(
+                      labelText: 'Business Name',
+                      prefixIcon: Icon(Icons.storefront_outlined),
                     ),
                   ),
-                  const SizedBox(
-                    height: 16,
-                  ),
+                  const SizedBox(height: 16),
                   TextField(
-                    controller:
-                    emailController,
-                    keyboardType:
-                    TextInputType
-                        .emailAddress,
-                    decoration:
-                    const InputDecoration(
+                    controller: emailController,
+                    keyboardType: TextInputType.emailAddress,
+                    decoration: const InputDecoration(
                       labelText: 'Email',
-                      prefixIcon: Icon(
-                        Icons.email_outlined,
-                      ),
+                      prefixIcon: Icon(Icons.email_outlined),
                     ),
                   ),
-                  const SizedBox(
-                    height: 16,
-                  ),
+                  const SizedBox(height: 16),
                   TextField(
-                    controller:
-                    passwordController,
-                    obscureText:
-                    obscurePassword,
-                    decoration:
-                    InputDecoration(
-                      labelText:
-                      'Password',
-                      prefixIcon:
-                      const Icon(
-                        Icons.lock_outline,
-                      ),
-                      suffixIcon:
-                      IconButton(
+                    controller: passwordController,
+                    obscureText: obscurePassword,
+                    decoration: InputDecoration(
+                      labelText: 'Password',
+                      prefixIcon: const Icon(Icons.lock_outline),
+                      suffixIcon: IconButton(
                         onPressed: () {
                           setState(() {
-                            obscurePassword =
-                            !obscurePassword;
+                            obscurePassword = !obscurePassword;
                           });
                         },
                         icon: Icon(
                           obscurePassword
-                              ? Icons
-                              .visibility_outlined
-                              : Icons
-                              .visibility_off_outlined,
+                              ? Icons.visibility_outlined
+                              : Icons.visibility_off_outlined,
                         ),
                       ),
                     ),
                   ),
-                  const SizedBox(
-                    height: 16,
-                  ),
+                  const SizedBox(height: 16),
                   TextField(
-                    controller:
-                    confirmPasswordController,
-                    obscureText:
-                    obscurePassword,
-                    decoration:
-                    const InputDecoration(
-                      labelText:
-                      'Confirm Password',
-                      prefixIcon: Icon(
-                        Icons.lock_outline,
-                      ),
+                    controller: confirmPasswordController,
+                    obscureText: obscurePassword,
+                    decoration: const InputDecoration(
+                      labelText: 'Confirm Password',
+                      prefixIcon: Icon(Icons.lock_outline),
                     ),
                   ),
-                  const SizedBox(
-                    height: 24,
-                  ),
+                  const SizedBox(height: 24),
                   SizedBox(
-                    width:
-                    double.infinity,
+                    width: double.infinity,
                     height: 52,
                     child: FilledButton(
-                      onPressed:
-                      loading
-                          ? null
-                          : _register,
+                      onPressed: loading ? null : _register,
                       child: loading
                           ? const SizedBox(
-                        width: 22,
-                        height: 22,
-                        child:
-                        CircularProgressIndicator(
-                          strokeWidth:
-                          2,
-                        ),
-                      )
-                          : const Text(
-                        'Register',
-                      ),
+                              width: 22,
+                              height: 22,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Text('Register'),
                     ),
                   ),
-                  const SizedBox(
-                    height: 12,
-                  ),
+                  const SizedBox(height: 12),
                   TextButton(
-                    onPressed:
-                    loading
+                    onPressed: loading
                         ? null
                         : () {
-                      context.go(
-                        '/login',
-                      );
-                    },
-                    child: const Text(
-                      'Already have an account? Login',
-                    ),
+                            context.go('/login');
+                          },
+                    child: const Text('Already have an account? Login'),
                   ),
                 ],
               ),

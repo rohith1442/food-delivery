@@ -16,11 +16,15 @@ class ApiClient {
 
   final Dio _dio;
 
-  Future<Response<dynamic>> get(String path) async {
+  Future<Response<dynamic>> get(
+    String path, {
+    Map<String, dynamic>? queryParameters,
+  }) async {
     final token = await _getFirebaseToken();
 
     return _dio.get(
       path,
+      queryParameters: queryParameters,
       options: Options(
         headers: {if (token != null) 'Authorization': 'Bearer $token'},
       ),

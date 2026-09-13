@@ -3,10 +3,16 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../core/config/app_branding.dart';
+import '../../core/widgets/merchant_state_view.dart';
+import '../notifications/notifications_page.dart';
 import '../orders/orders_page.dart';
+import '../orders/merchant_orders_api_service.dart';
+import '../profile/profile_page.dart';
 import '../products/products_page.dart';
 import '../store/create_store_page.dart';
 import '../store/store_api_service.dart';
+import '../store/store_settings_page.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -17,9 +23,11 @@ class DashboardPage extends StatefulWidget {
 
 class _DashboardPageState extends State<DashboardPage> {
   final StoreApiService _storeApiService = StoreApiService();
+  final MerchantOrdersApiService _ordersApiService = MerchantOrdersApiService();
   final ImagePicker _imagePicker = ImagePicker();
 
   Map<String, dynamic>? _store;
+  List<Map<String, dynamic>> _dashboardOrders = [];
 
   bool _isLoading = true;
   bool _isUpdatingStatus = false;
@@ -39,12 +47,18 @@ class _DashboardPageState extends State<DashboardPage> {
         _error = null;
       });
 
-      final store = await _storeApiService.getStore();
+      final results = await Future.wait<Object?>([
+        _storeApiService.getStore(),
+        _ordersApiService.getOrders(),
+      ]);
+      final store = results[0] as Map<String, dynamic>?;
+      final orders = results[1] as List<Map<String, dynamic>>;
 
       if (!mounted) return;
 
       setState(() {
         _store = store;
+        _dashboardOrders = orders;
         _isLoading = false;
       });
     } catch (error) {
@@ -184,11 +198,24 @@ class _DashboardPageState extends State<DashboardPage> {
         .push(MaterialPageRoute(builder: (_) => const ProductsPage()));
   }
 
+  Future<void> _openStoreSettings() async {
+    final store = _store;
+    if (store == null) return;
+
+    final updated = await Navigator.of(context).push<Map<String, dynamic>>(
+      MaterialPageRoute(builder: (_) => StoreSettingsPage(store: store)),
+    );
+
+    if (mounted && updated != null) {
+      setState(() => _store = updated);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Merchant Dashboard'),
+        title: const Text('Dashboard'),
         actions: [
           IconButton(
             tooltip: 'Refresh',
@@ -196,7 +223,12 @@ class _DashboardPageState extends State<DashboardPage> {
             icon: const Icon(Icons.refresh),
           ),
           IconButton(
-            onPressed: () {},
+            tooltip: 'Notifications',
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const NotificationsPage()),
+              );
+            },
             icon: const Icon(Icons.notifications_outlined),
           ),
           IconButton(
@@ -225,8 +257,10 @@ class _DashboardPageState extends State<DashboardPage> {
                     break;
 
                   case 3:
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Profile coming soon')),
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const MerchantProfilePage(),
+                      ),
                     );
                     break;
                 }
@@ -256,35 +290,16 @@ class _DashboardPageState extends State<DashboardPage> {
 
   Widget _buildBody() {
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return const MerchantLoadingView(message: 'Loading your store...');
     }
 
     if (_error != null) {
-      return RefreshIndicator(
-        onRefresh: _loadStore,
-        child: ListView(
-          padding: const EdgeInsets.all(24),
-          children: [
-            const SizedBox(height: 100),
-            const Icon(Icons.error_outline, size: 56),
-            const SizedBox(height: 16),
-            const Text(
-              'Unable to load store',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            Text(_error!, textAlign: TextAlign.center),
-            const SizedBox(height: 24),
-            Center(
-              child: FilledButton.icon(
-                onPressed: _loadStore,
-                icon: const Icon(Icons.refresh),
-                label: const Text('Retry'),
-              ),
-            ),
-          ],
-        ),
+      return MerchantStateView(
+        icon: Icons.error_outline,
+        title: 'Unable to load store',
+        message: _error,
+        actionLabel: 'Retry',
+        onAction: _loadStore,
       );
     }
 
@@ -344,6 +359,7 @@ class _DashboardPageState extends State<DashboardPage> {
     final moduleId = store['moduleId']?.toString() ?? '';
 
     final isOpen = store['isOpen'] == true;
+    final currency = AppBrandingController.instance.branding.currencySymbol;
 
     return RefreshIndicator(
       onRefresh: _loadStore,
@@ -357,6 +373,46 @@ class _DashboardPageState extends State<DashboardPage> {
 
           const SizedBox(height: 4),
 
+          Row(
+            children: [
+              Expanded(
+                child: _StatCard(
+                  title: 'New Orders',
+                  value: '$_newOrders',
+                  icon: Icons.receipt_long,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _StatCard(
+                  title: 'Preparing',
+                  value: '$_preparingOrders',
+                  icon: Icons.restaurant,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _StatCard(
+                  title: 'Ready',
+                  value: '$_readyOrders',
+                  icon: Icons.check_circle_outline,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _StatCard(
+                  title: "Today's Sales",
+                  value: '$currency${_todaySales.toStringAsFixed(0)}',
+                  icon: Icons.payments_outlined,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 32),
           Text(
             storeName,
             style: TextStyle(
@@ -466,130 +522,78 @@ class _DashboardPageState extends State<DashboardPage> {
 
           const SizedBox(height: 24),
 
-          Row(
-            children: [
-              Expanded(
-                child: _StatCard(
-                  title: 'New Orders',
-                  value: '5',
-                  icon: Icons.receipt_long,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _StatCard(
-                  title: 'Preparing',
-                  value: '3',
-                  icon: Icons.restaurant,
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 12),
-
-          Row(
-            children: [
-              Expanded(
-                child: _StatCard(
-                  title: 'Ready',
-                  value: '2',
-                  icon: Icons.check_circle_outline,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _StatCard(
-                  title: "Today's Sales",
-                  value: '₹8,450',
-                  icon: Icons.currency_rupee,
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 32),
-
           Text(
-            'Quick Actions',
+            'Manage your store',
             style: Theme.of(context).textTheme.titleLarge
-                ?.copyWith(fontWeight: FontWeight.bold),
+                ?.copyWith(fontWeight: FontWeight.w800),
           ),
 
           const SizedBox(height: 12),
 
-          _ActionTile(
-            icon: Icons.receipt_long_outlined,
-            title: 'Manage Orders',
-            subtitle: 'View and update incoming orders',
-            onTap: _openOrders,
+          Row(
+            children: [
+              Expanded(
+                child: _DashboardActionCard(
+                  icon: Icons.receipt_long_outlined,
+                  title: 'Orders',
+                  subtitle: 'Manage incoming orders',
+                  onTap: _openOrders,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _DashboardActionCard(
+                  icon: Icons.inventory_2_outlined,
+                  title: 'Products',
+                  subtitle: 'Menu & availability',
+                  onTap: _openProducts,
+                ),
+              ),
+            ],
           ),
 
-          _ActionTile(
-            icon: Icons.inventory_2_outlined,
-            title: 'Manage Products',
-            subtitle: 'Update menu items and prices',
-            onTap: _openProducts,
-          ),
+          const SizedBox(height: 12),
 
-          _ActionTile(
+          _DashboardActionCard(
             icon: Icons.storefront_outlined,
-            title: 'Store Settings',
+            title: 'Store settings',
             subtitle: isOpen
-                ? 'Store is currently open'
+                ? 'Store is accepting orders'
                 : 'Store is currently closed',
-            onTap: () {
-              _showStoreSettings(isOpen);
-            },
+            onTap: _openStoreSettings,
           ),
         ],
       ),
     );
   }
 
-  void _showStoreSettings(bool isOpen) {
-    showModalBottomSheet<void>(
-      context: context,
-      builder: (sheetContext) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Store Settings',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                ),
+  int get _newOrders => _dashboardOrders
+      .where((order) => order['status'] == 'VENDOR_PENDING')
+      .length;
 
-                const SizedBox(height: 8),
+  int get _preparingOrders =>
+      _dashboardOrders.where((order) => order['status'] == 'PREPARING').length;
 
-                Text(
-                  isOpen
-                      ? 'Your store is currently accepting orders.'
-                      : 'Your store is currently not accepting orders.',
-                ),
+  int get _readyOrders =>
+      _dashboardOrders.where((order) => order['status'] == 'READY').length;
 
-                const SizedBox(height: 20),
+  double get _todaySales {
+    final now = DateTime.now();
 
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton(
-                    onPressed: () {
-                      Navigator.of(sheetContext).pop();
+    return _dashboardOrders.fold(0.0, (sum, order) {
+      final createdAt = DateTime.tryParse(order['createdAt']?.toString() ?? '')
+          ?.toLocal();
+      if (createdAt == null ||
+          createdAt.year != now.year ||
+          createdAt.month != now.month ||
+          createdAt.day != now.day ||
+          order['status']?.toString() == 'REJECTED') {
+        return sum;
+      }
 
-                      _updateStoreStatus(!isOpen);
-                    },
-                    child: Text(isOpen ? 'Close Store' : 'Open Store'),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
+      final total = order['total'];
+      return sum + (total is num ? total.toDouble() : 0);
+    });
   }
 }
 
@@ -702,8 +706,8 @@ class _StatCard extends StatelessWidget {
   }
 }
 
-class _ActionTile extends StatelessWidget {
-  const _ActionTile({
+class _DashboardActionCard extends StatelessWidget {
+  const _DashboardActionCard({
     required this.icon,
     required this.title,
     required this.subtitle,
@@ -717,14 +721,42 @@ class _ActionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
     return Card(
-      margin: const EdgeInsets.only(bottom: 10),
-      child: ListTile(
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
         onTap: onTap,
-        leading: Icon(icon, color: Theme.of(context).colorScheme.primary),
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: Text(subtitle),
-        trailing: const Icon(Icons.chevron_right),
+        child: Padding(
+          padding: const EdgeInsets.all(18),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: colors.primaryContainer,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(icon, color: colors.primary),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                subtitle,
+                style: TextStyle(fontSize: 13, color: colors.onSurfaceVariant),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
