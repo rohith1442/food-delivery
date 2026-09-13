@@ -34,6 +34,14 @@ class _DashboardPageState extends State<DashboardPage> {
   bool _isUpdatingImage = false;
   String? _error;
 
+  String get _greeting {
+    final hour = DateTime.now().hour;
+
+    if (hour < 12) return 'Good morning 👋';
+    if (hour < 17) return 'Good afternoon 👋';
+    return 'Good evening 👋';
+  }
+
   @override
   void initState() {
     super.initState();
@@ -214,6 +222,8 @@ class _DashboardPageState extends State<DashboardPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: true,
+      extendBody: false,
       appBar: AppBar(
         title: const Text('Dashboard'),
         actions: [
@@ -363,204 +373,221 @@ class _DashboardPageState extends State<DashboardPage> {
 
     return RefreshIndicator(
       onRefresh: _loadStore,
-      child: ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          const Text(
-            'Good afternoon 👋',
-            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-          ),
-
-          const SizedBox(height: 4),
-
-          Row(
-            children: [
-              Expanded(
-                child: _StatCard(
-                  title: 'New Orders',
-                  value: '$_newOrders',
-                  icon: Icons.receipt_long,
+      child: CustomScrollView(
+        physics: const AlwaysScrollableScrollPhysics(
+          parent: BouncingScrollPhysics(),
+        ),
+        slivers: [
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 140),
+            sliver: SliverList(
+              delegate: SliverChildListDelegate([
+                Text(
+                  _greeting,
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _StatCard(
-                  title: 'Preparing',
-                  value: '$_preparingOrders',
-                  icon: Icons.restaurant,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: _StatCard(
-                  title: 'Ready',
-                  value: '$_readyOrders',
-                  icon: Icons.check_circle_outline,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _StatCard(
-                  title: "Today's Sales",
-                  value: '$currency${_todaySales.toStringAsFixed(0)}',
-                  icon: Icons.payments_outlined,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 32),
-          Text(
-            storeName,
-            style: TextStyle(
-              fontSize: 16,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-          ),
 
-          const SizedBox(height: 4),
+                const SizedBox(height: 4),
 
-          Text(
-            address,
-            style: TextStyle(
-              fontSize: 13,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-          ),
-
-          const SizedBox(height: 20),
-
-          GestureDetector(
-            onTap: _isUpdatingImage ? null : _changeStoreImage,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(18),
-              child: Container(
-                height: 180,
-                width: double.infinity,
-                color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                child: _isUpdatingImage
-                    ? const Center(child: CircularProgressIndicator())
-                    : imageUrl != null && imageUrl.isNotEmpty
-                    ? Stack(
-                        fit: StackFit.expand,
-                        children: [
-                          Image.network(
-                            imageUrl,
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) {
-                              return const Center(
-                                child: Icon(
-                                  Icons.storefront_outlined,
-                                  size: 56,
-                                ),
-                              );
-                            },
-                          ),
-                          Positioned(
-                            right: 12,
-                            bottom: 12,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 8,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.black54,
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: const Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    Icons.edit,
-                                    color: Colors.white,
-                                    size: 16,
-                                  ),
-                                  SizedBox(width: 6),
-                                  Text(
-                                    'Change image',
-                                    style: TextStyle(color: Colors.white),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
-                      )
-                    : Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(
-                            Icons.add_photo_alternate_outlined,
-                            size: 48,
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Add store image',
-                            style: TextStyle(
-                              color: Theme.of(context).colorScheme.primary,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
+                Row(
+                  children: [
+                    Expanded(
+                      child: _StatCard(
+                        title: 'New Orders',
+                        value: '$_newOrders',
+                        icon: Icons.receipt_long,
                       ),
-              ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _StatCard(
+                        title: 'Preparing',
+                        value: '$_preparingOrders',
+                        icon: Icons.restaurant,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _StatCard(
+                        title: 'Ready',
+                        value: '$_readyOrders',
+                        icon: Icons.check_circle_outline,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _StatCard(
+                        title: "Today's Sales",
+                        value: '$currency${_todaySales.toStringAsFixed(0)}',
+                        icon: Icons.payments_outlined,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 32),
+                Text(
+                  storeName,
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+
+                const SizedBox(height: 4),
+
+                Text(
+                  address,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+
+                const SizedBox(height: 20),
+
+                GestureDetector(
+                  onTap: _isUpdatingImage ? null : _changeStoreImage,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(18),
+                    child: Container(
+                      height: 180,
+                      width: double.infinity,
+                      color: Theme.of(context)
+                          .colorScheme
+                          .surfaceContainerHighest,
+                      child: _isUpdatingImage
+                          ? const Center(child: CircularProgressIndicator())
+                          : imageUrl != null && imageUrl.isNotEmpty
+                          ? Stack(
+                              fit: StackFit.expand,
+                              children: [
+                                Image.network(
+                                  imageUrl,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return const Center(
+                                      child: Icon(
+                                        Icons.storefront_outlined,
+                                        size: 56,
+                                      ),
+                                    );
+                                  },
+                                ),
+                                Positioned(
+                                  right: 12,
+                                  bottom: 12,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 8,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.black54,
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    child: const Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          Icons.edit,
+                                          color: Colors.white,
+                                          size: 16,
+                                        ),
+                                        SizedBox(width: 6),
+                                        Text(
+                                          'Change image',
+                                          style: TextStyle(color: Colors.white),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            )
+                          : Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(
+                                  Icons.add_photo_alternate_outlined,
+                                  size: 48,
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Add store image',
+                                  style: TextStyle(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .primary,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 20),
+
+                _StoreStatusCard(
+                  moduleId: moduleId,
+                  isOpen: isOpen,
+                  isUpdating: _isUpdatingStatus,
+                  onChanged: _updateStoreStatus,
+                ),
+
+                const SizedBox(height: 24),
+
+                Text(
+                  'Manage your store',
+                  style: Theme.of(context).textTheme.titleLarge
+                      ?.copyWith(fontWeight: FontWeight.w800),
+                ),
+
+                const SizedBox(height: 12),
+
+                Row(
+                  children: [
+                    Expanded(
+                      child: _DashboardActionCard(
+                        icon: Icons.receipt_long_outlined,
+                        title: 'Orders',
+                        subtitle: 'Manage incoming orders',
+                        onTap: _openOrders,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _DashboardActionCard(
+                        icon: Icons.inventory_2_outlined,
+                        title: 'Products',
+                        subtitle: 'Menu & availability',
+                        onTap: _openProducts,
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 12),
+
+                _DashboardActionCard(
+                  icon: Icons.storefront_outlined,
+                  title: 'Store settings',
+                  subtitle: isOpen
+                      ? 'Store is accepting orders'
+                      : 'Store is currently closed',
+                  onTap: _openStoreSettings,
+                ),
+                const SizedBox(height: 24),
+              ]),
             ),
-          ),
-
-          const SizedBox(height: 20),
-
-          _StoreStatusCard(
-            moduleId: moduleId,
-            isOpen: isOpen,
-            isUpdating: _isUpdatingStatus,
-            onChanged: _updateStoreStatus,
-          ),
-
-          const SizedBox(height: 24),
-
-          Text(
-            'Manage your store',
-            style: Theme.of(context).textTheme.titleLarge
-                ?.copyWith(fontWeight: FontWeight.w800),
-          ),
-
-          const SizedBox(height: 12),
-
-          Row(
-            children: [
-              Expanded(
-                child: _DashboardActionCard(
-                  icon: Icons.receipt_long_outlined,
-                  title: 'Orders',
-                  subtitle: 'Manage incoming orders',
-                  onTap: _openOrders,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _DashboardActionCard(
-                  icon: Icons.inventory_2_outlined,
-                  title: 'Products',
-                  subtitle: 'Menu & availability',
-                  onTap: _openProducts,
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 12),
-
-          _DashboardActionCard(
-            icon: Icons.storefront_outlined,
-            title: 'Store settings',
-            subtitle: isOpen
-                ? 'Store is accepting orders'
-                : 'Store is currently closed',
-            onTap: _openStoreSettings,
           ),
         ],
       ),

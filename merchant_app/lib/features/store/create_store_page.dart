@@ -117,6 +117,9 @@ class _CreateStorePageState extends State<CreateStorePage> {
       }
 
       final position = await Geolocator.getCurrentPosition();
+      debugPrint(
+        'Current location: ${position.latitude}, ${position.longitude}',
+      );
       await _setLocation(LatLng(position.latitude, position.longitude));
     } catch (error) {
       if (!mounted) return;

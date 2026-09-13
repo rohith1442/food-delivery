@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 import '../../core/network/api_client.dart';
 
 class ZoneApiService {
@@ -10,6 +12,7 @@ class ZoneApiService {
     required double latitude,
     required double longitude,
   }) async {
+    debugPrint('Resolving zone for: $latitude, $longitude');
     final response = await _apiClient.get(
       '/zones/resolve',
       queryParameters: {'latitude': latitude, 'longitude': longitude},

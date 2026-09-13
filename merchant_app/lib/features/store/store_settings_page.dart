@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:geocoding/geocoding.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import '../../core/config/app_branding.dart';
@@ -28,6 +29,7 @@ class _StoreSettingsPageState extends State<StoreSettingsPage> {
   LatLng? _selectedLocation;
   Map<String, dynamic>? _resolvedZone;
   bool _resolvingLocation = false;
+  bool _isGettingLocation = false;
   bool _isSaving = false;
 
   @override
@@ -115,6 +117,42 @@ class _StoreSettingsPageState extends State<StoreSettingsPage> {
       }
     } finally {
       if (mounted) setState(() => _resolvingLocation = false);
+    }
+  }
+
+  Future<void> _useCurrentLocation() async {
+    try {
+      setState(() {
+        _isGettingLocation = true;
+      });
+
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        throw Exception('Location permission is required');
+      }
+
+      final position = await Geolocator.getCurrentPosition();
+      debugPrint(
+        'Current location: ${position.latitude}, ${position.longitude}',
+      );
+      await _resolveLocation(LatLng(position.latitude, position.longitude));
+    } catch (error) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Unable to get current location: $error')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isGettingLocation = false;
+        });
+      }
     }
   }
 
@@ -235,6 +273,18 @@ class _StoreSettingsPageState extends State<StoreSettingsPage> {
                   myLocationButtonEnabled: false,
                 ),
               ),
+            ),
+            const SizedBox(height: 10),
+            OutlinedButton.icon(
+              onPressed: _isGettingLocation ? null : _useCurrentLocation,
+              icon: _isGettingLocation
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.my_location),
+              label: const Text('Use Current Location'),
             ),
             if (_resolvingLocation) const LinearProgressIndicator(minHeight: 2),
             if (_resolvedZone != null)
