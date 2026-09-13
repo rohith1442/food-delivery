@@ -3,6 +3,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 
 import '../core/config/app_branding.dart';
 import '../core/config/home_config.dart';
+import '../core/network/api_base_url.dart';
 
 class AppConfigResult {
   final bool maintenanceMode;
@@ -25,7 +26,7 @@ class AppConfigResult {
 class AppConfigService {
   final Dio _dio = Dio(
     BaseOptions(
-      baseUrl: 'http://10.0.2.2:3000',
+      baseUrl: getApiBaseUrl(),
       connectTimeout: const Duration(seconds: 5),
       receiveTimeout: const Duration(seconds: 5),
     ),

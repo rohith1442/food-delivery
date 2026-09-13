@@ -1,11 +1,13 @@
 import 'package:dio/dio.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+import 'api_base_url.dart';
+
 class ApiClient {
   ApiClient()
     : _dio = Dio(
         BaseOptions(
-          baseUrl: 'http://10.0.2.2:3000',
+          baseUrl: getApiBaseUrl(),
           connectTimeout: const Duration(seconds: 10),
           receiveTimeout: const Duration(seconds: 10),
           headers: {'Content-Type': 'application/json'},
