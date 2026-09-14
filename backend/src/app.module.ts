@@ -19,6 +19,8 @@ import { NotificationsModule } from './notifications/notifications.module.js';
 import { ModulesModule } from './modules/modules.module.js';
 import { SearchModule } from './search/search.module.js';
 import { ReviewsModule } from './reviews/reviews.module.js';
+import { SettlementsModule } from './settlements/settlements.module.js';
+import { OnboardingModule } from './onboarding/onboarding.module.js';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -40,6 +42,8 @@ import { ReviewsModule } from './reviews/reviews.module.js';
     ModulesModule,
     SearchModule,
     ReviewsModule,
+    SettlementsModule,
+    OnboardingModule,
   ],
   controllers: [AppController],
   providers: [AppService],

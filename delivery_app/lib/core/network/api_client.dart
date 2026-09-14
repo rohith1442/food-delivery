@@ -51,6 +51,17 @@ class ApiClient {
     );
   }
 
+  Future<Response<dynamic>> put(String path, {dynamic data}) async {
+    final token = await _getFirebaseToken();
+    return _dio.put(
+      path,
+      data: data,
+      options: Options(
+        headers: {if (token != null) 'Authorization': 'Bearer $token'},
+      ),
+    );
+  }
+
   Future<String?> _getFirebaseToken() async {
     final user = FirebaseAuth.instance.currentUser;
 

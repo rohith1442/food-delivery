@@ -8,12 +8,14 @@ import { MerchantOrdersController } from './merchant_orders.controller.js';
 import { OrdersController } from './orders.controller.js';
 import { OrdersService } from './orders.service.js';
 import { RazorpayRefundModule } from '../payments/razorpay-refund.module.js';
+import { SettlementsModule } from '../settlements/settlements.module.js';
 
 @Module({
   imports: [
     FirebaseModule,
     AuthModule,
-    RazorpayRefundModule
+    RazorpayRefundModule,
+    SettlementsModule,
   ],
   controllers: [
     OrdersController,

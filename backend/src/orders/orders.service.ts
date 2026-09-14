@@ -15,6 +15,7 @@ import {
 import { FirebaseService } from '../firebase/firebase.service.js';
 import { RazorpayRefundService } from '../payments/razorpay-refund.service.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
+import { SettlementsService } from '../settlements/settlements.service.js';
 
 export interface PrepareCheckoutRequest {
   storeId: string;
@@ -92,6 +93,15 @@ export interface OrderDocument {
   subtotal: number;
   deliveryFee: number;
   total: number;
+  financials?: {
+    itemAmount: number;
+    customerDeliveryFee: number;
+    grossAmount: number;
+    merchantCommission: number;
+    merchantPayable: number;
+    riderEarning: number;
+    platformRevenue: number;
+  };
 
   status: string;
 
@@ -122,6 +132,7 @@ interface StoreDocument {
   minimumOrder: number;
   isActive: boolean;
   isOpen: boolean;
+  commission?: { type?: 'PERCENTAGE' | 'FIXED'; value?: number };
 }
 
 interface ProductDocument {
@@ -175,6 +186,7 @@ export class OrdersService {
     private readonly razorpayRefundService: RazorpayRefundService,
     private readonly notificationsService: NotificationsService,
     private readonly configService: ConfigService,
+    private readonly settlementsService: SettlementsService,
   ) {}
 
   // --------------------------------------------------
@@ -260,6 +272,7 @@ export class OrdersService {
       const storeRef = db.collection('stores').doc(data.storeId);
 
       const addressRef = db.collection('addresses').doc(data.addressId);
+      const settingsRef = db.collection('settings').doc('global');
 
       const orderRef = options?.orderId
         ? db.collection('orders').doc(options.orderId)
@@ -297,6 +310,7 @@ export class OrdersService {
         const storeSnapshot = await transaction.get(storeRef);
 
         const addressSnapshot = await transaction.get(addressRef);
+        const settingsSnapshot = await transaction.get(settingsRef);
 
         if (!storeSnapshot.exists) {
           throw new NotFoundException('Store not found');
@@ -423,6 +437,23 @@ export class OrdersService {
 
         const total = subtotal + deliveryFee;
 
+        const settings = settingsSnapshot.exists ? settingsSnapshot.data() ?? {} : {};
+        const commissionSettings = store.commission ?? settings.payments?.merchantCommission ?? { type: 'PERCENTAGE', value: 10 };
+        const commissionAmount = commissionSettings.type === 'FIXED'
+          ? Math.max(0, Number(commissionSettings.value ?? 0))
+          : Number((subtotal * Number(commissionSettings.value ?? 10) / 100).toFixed(2));
+        const riderSettings = settings.payments?.riderEarning ?? { baseAmount: 30, perKmAmount: 5, minimumAmount: 30 };
+        const riderEarning = Math.max(Number(riderSettings.minimumAmount ?? 30), Number(riderSettings.baseAmount ?? 30));
+        const financials = {
+          itemAmount: subtotal,
+          customerDeliveryFee: deliveryFee,
+          grossAmount: total,
+          merchantCommission: commissionAmount,
+          merchantPayable: Math.max(0, subtotal - commissionAmount),
+          riderEarning,
+          platformRevenue: commissionAmount + deliveryFee - riderEarning,
+        };
+
         if (!Number.isFinite(total) || total <= 0) {
           throw new BadRequestException('Invalid order total');
         }
@@ -507,6 +538,7 @@ export class OrdersService {
           subtotal,
           deliveryFee,
           total,
+          financials,
 
           status: 'VENDOR_PENDING',
 
@@ -2094,6 +2126,11 @@ export class OrdersService {
     }
 
     await this.notifyCustomerDeliveryStatus(result.order, 'DELIVERED');
+    try {
+      await this.settlementsService.finalizeOrderSettlement(orderId);
+    } catch (error) {
+      this.logger.error(`Settlement preparation failed orderId=${orderId}`, String(error));
+    }
 
     return {
       success: true,

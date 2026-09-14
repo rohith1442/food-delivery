@@ -97,6 +97,7 @@ interface GlobalSettingsDocument {
   supportPhone?: string;
   deliveryPromiseText?: string;
   content?: Record<string, any>;
+  payments?: Record<string, any>;
 
   home?: {
     enabledModules?: string[];
@@ -1033,6 +1034,7 @@ export class AdminService {
         supportPhone: '',
         deliveryPromiseText: '20-Min Delivery',
         content: this.getDefaultContent(),
+        payments: { merchantCommission: { type: 'PERCENTAGE', value: 10 }, riderEarning: { baseAmount: 30, perKmAmount: 5, minimumAmount: 30 }, settlement: { merchantEnabled: false, riderPayoutEnabled: false, riderPayoutFrequency: 'WEEKLY' } },
       };
     }
 
@@ -1245,6 +1247,13 @@ export class AdminService {
     if (data.content !== undefined) {
       const current = (await settingsRef.get()).data()?.content ?? {};
       updates.content = this.mergeContent(current, data.content);
+    }
+
+    if (data.payments !== undefined) {
+      const payments = data.payments as any;
+      if (!['PERCENTAGE', 'FIXED'].includes(payments.merchantCommission?.type) || typeof payments.merchantCommission?.value !== 'number' || payments.merchantCommission.value < 0) throw new BadRequestException('Invalid merchant commission settings');
+      if (!['DAILY', 'WEEKLY', 'MANUAL'].includes(payments.settlement?.riderPayoutFrequency)) throw new BadRequestException('Invalid rider payout frequency');
+      updates.payments = payments;
     }
 
     updates.updatedAt = new Date().toISOString();

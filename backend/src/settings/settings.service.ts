@@ -35,6 +35,7 @@ interface GlobalSettings {
   supportPhone?: string;
   deliveryPromiseText?: string;
   content?: Record<string, any>;
+  payments?: Record<string, any>;
 
   home?: {
     enabledModules?: string[];
@@ -138,6 +139,12 @@ export class SettingsService {
         '20-Min Delivery',
     };
 
+    const payments = settings.payments ?? {
+      merchantCommission: { type: 'PERCENTAGE', value: 10 },
+      riderEarning: { baseAmount: 30, perKmAmount: 5, minimumAmount: 30 },
+      settlement: { merchantEnabled: false, riderPayoutEnabled: false, riderPayoutFrequency: 'WEEKLY' },
+    };
+
     const home = {
       enabledModules:
         settings.home?.enabledModules ?? [
@@ -201,6 +208,7 @@ export class SettingsService {
             settings.customerForceUpdate ===
             true,
           branding,
+          payments,
           home,
         };
 
@@ -215,6 +223,7 @@ export class SettingsService {
             settings.merchantForceUpdate ===
             true,
           branding,
+          payments,
         };
 
       case 'DELIVERY':
@@ -228,6 +237,7 @@ export class SettingsService {
             settings.deliveryForceUpdate ===
             true,
           branding,
+          payments,
         };
     }
   }
