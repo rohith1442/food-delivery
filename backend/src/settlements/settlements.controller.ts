@@ -6,7 +6,7 @@ import { SettlementsService } from './settlements.service.js';
 @Controller('settlements')
 @UseGuards(AuthGuard, RolesGuard)
 @Roles('ADMIN')
-export class SettlementsController { constructor(private readonly service: SettlementsService) {} @Get() list() { return this.service.getAllSettlements(); } @Get(':orderId') get(@Param('orderId') orderId: string) { return this.service.getOrderSettlements(orderId); } @Post(':orderId/finalize') finalize(@Param('orderId') orderId: string) { return this.service.finalizeOrderSettlement(orderId); } @Post(':orderId/retry') retry(@Param('orderId') orderId: string) { return this.service.retryMerchantSettlement(orderId); } }
+export class SettlementsController { constructor(private readonly service: SettlementsService) {} @Get() list() { return this.service.getAllSettlements(); } @Get(':orderId') get(@Param('orderId') orderId: string) { return this.service.getOrderSettlements(orderId); } @Post(':orderId/finalize') finalize(@Param('orderId') orderId: string) { return this.service.finalizeOrderSettlement(orderId); } @Post(':orderId/retry') retry(@Param('orderId') orderId: string) { return this.service.retryMerchantSettlement(orderId); } @Post(':orderId/reconcile') reconcile(@Param('orderId') orderId: string) { return this.service.reconcileMerchantSettlement(orderId); } }
 
 @Controller('admin/payouts')
 @UseGuards(AuthGuard, RolesGuard)

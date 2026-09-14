@@ -30,6 +30,13 @@ export class RazorpayRouteService {
     if (!response.ok) throw new BadRequestException(data?.error?.description ?? 'Merchant transfer failed');
     return data;
   }
+  async listPaymentTransfers(paymentId: string) {
+    this.ensureConfigured();
+    const response = await fetch(`https://api.razorpay.com/v1/payments/${paymentId}/transfers`, { headers: { Authorization: this.authHeader } });
+    const data = await response.json() as any;
+    if (!response.ok) throw new BadRequestException(data?.error?.description ?? 'Unable to reconcile merchant transfers');
+    return data;
+  }
   async createLinkedAccount(input: { uid: string; email: string; phone: string; legalBusinessName: string; customerFacingBusinessName: string; businessType: string }) {
     this.ensureConfigured();
     const response = await fetch('https://api.razorpay.com/v2/accounts', { method: 'POST', headers: { Authorization: this.authHeader, 'Content-Type': 'application/json' }, body: JSON.stringify({ email: input.email, phone: input.phone, legal_business_name: input.legalBusinessName, customer_facing_business_name: input.customerFacingBusinessName, business_type: input.businessType, reference_id: input.uid }) });

@@ -77,6 +77,17 @@ export class SettlementsService {
     if (!['FAILED', 'ON_HOLD'].includes(settlement?.status)) throw new BadRequestException('Settlement cannot be retried in its current state');
     return this.finalizeOrderSettlement(orderId);
   }
+  async reconcileMerchantSettlement(orderId: string) {
+    const db = this.firebase.getFirestore();
+    const order = (await db.collection('orders').doc(orderId).get()).data() as any;
+    const ref = db.collection('settlements').doc(`${orderId}_MERCHANT`);
+    if (!order?.providerPaymentId) throw new BadRequestException('Provider payment is missing');
+    const transfers = await this.route.listPaymentTransfers(order.providerPaymentId);
+    const transfer = (transfers?.items ?? transfers?.transfers ?? []).find((item: any) => item.notes?.orderId === orderId);
+    if (!transfer?.id) { await ref.set({ status: 'ON_HOLD', reconciliationRequired: true, failureReason: 'No matching provider transfer found', updatedAt: new Date().toISOString() }, { merge: true }); return { success: true, matched: false }; }
+    await ref.set({ providerTransferId: transfer.id, status: transfer.status === 'processed' ? 'PAID' : 'PROCESSING', reconciliationRequired: false, failureReason: null, ...(transfer.status === 'processed' ? { paidAt: new Date().toISOString() } : {}), updatedAt: new Date().toISOString() }, { merge: true });
+    return { success: true, matched: true, providerTransferId: transfer.id };
+  }
 
   async payoutRider(riderId: string) {
     const db = this.firebase.getFirestore();
