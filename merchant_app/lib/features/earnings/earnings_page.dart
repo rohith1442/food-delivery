@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'earnings_api_service.dart';
+import '../../core/config/app_branding.dart';
 
 class MerchantEarningsPage extends StatefulWidget {
   const MerchantEarningsPage({super.key});
@@ -39,6 +40,7 @@ class _MerchantEarningsPageState extends State<MerchantEarningsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final currency = AppBrandingController.instance.branding.currencySymbol;
     final summary = _summary?['summary'] is Map
         ? Map<String, dynamic>.from(_summary!['summary'] as Map)
         : {};
@@ -54,13 +56,15 @@ class _MerchantEarningsPageState extends State<MerchantEarningsPage> {
                   Card(
                     child: ListTile(
                       title: const Text('Lifetime net earnings'),
-                      trailing: Text('₹${summary['lifetimeNet'] ?? 0}'),
+                      trailing: Text('$currency${summary['lifetimeNet'] ?? 0}'),
                     ),
                   ),
                   Card(
                     child: ListTile(
                       title: const Text('Pending settlement'),
-                      trailing: Text('₹${summary['pendingSettlement'] ?? 0}'),
+                      trailing: Text(
+                        '$currency${summary['pendingSettlement'] ?? 0}',
+                      ),
                     ),
                   ),
                   const SizedBox(height: 20),
@@ -71,7 +75,7 @@ class _MerchantEarningsPageState extends State<MerchantEarningsPage> {
                           'Order #${item['orderId'] ?? item['id'] ?? '-'}',
                         ),
                         subtitle: Text(item['status']?.toString() ?? 'PENDING'),
-                        trailing: Text('₹${item['netAmount'] ?? 0}'),
+                        trailing: Text('$currency${item['netAmount'] ?? 0}'),
                       ),
                     ),
                   ),

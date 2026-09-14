@@ -42,7 +42,10 @@ const menuItems = [
   {
     label: "Settings",
     href: "/dashboard/settings",
-  }
+  },
+  { label: "Merchant KYC", href: "/dashboard/kyc/merchants" },
+  { label: "Delivery KYC", href: "/dashboard/kyc/delivery" },
+  { label: "Settlements", href: "/dashboard/settlements" },
 ];
 
 export default function AdminSidebar() {

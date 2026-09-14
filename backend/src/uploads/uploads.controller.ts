@@ -5,6 +5,8 @@ import {
   UploadedFile,
   UseGuards,
   UseInterceptors,
+  Get,
+  Param,
 } from '@nestjs/common';
 
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -85,4 +87,21 @@ export class UploadsController {
       file,
     );
   }
+
+  @Post('merchant/onboarding/documents/upload')
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles('MERCHANT')
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 10 * 1024 * 1024 } }))
+  uploadMerchantKyc(@Req() request: any, @UploadedFile() file: Express.Multer.File) { return this.uploadsService.uploadKycDocument(request.user.uid, 'merchant', request.body?.documentType ?? 'other', file); }
+
+  @Post('delivery/onboarding/documents/upload')
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles('DELIVERY')
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 10 * 1024 * 1024 } }))
+  uploadDeliveryKyc(@Req() request: any, @UploadedFile() file: Express.Multer.File) { return this.uploadsService.uploadKycDocument(request.user.uid, 'delivery', request.body?.documentType ?? 'other', file); }
+
+  @Get('admin/kyc-document/:encodedKey')
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles('ADMIN')
+  getKycUrl(@Param('encodedKey') encodedKey: string) { return this.uploadsService.getKycSignedUrl(decodeURIComponent(encodedKey)); }
 }

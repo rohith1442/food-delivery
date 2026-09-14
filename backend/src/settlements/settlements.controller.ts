@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Req, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, Post, Req, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '../auth/auth.guard.js';
 import { Roles } from '../auth/roles.decorator.js';
 import { RolesGuard } from '../auth/roles.guard.js';
@@ -6,7 +6,15 @@ import { SettlementsService } from './settlements.service.js';
 @Controller('settlements')
 @UseGuards(AuthGuard, RolesGuard)
 @Roles('ADMIN')
-export class SettlementsController { constructor(private readonly service: SettlementsService) {} @Get(':orderId') get(@Param('orderId') orderId: string) { return this.service.finalizeOrderSettlement(orderId); } }
+export class SettlementsController { constructor(private readonly service: SettlementsService) {} @Get(':orderId') get(@Param('orderId') orderId: string) { return this.service.getSettlement(orderId); } @Post(':orderId/finalize') finalize(@Param('orderId') orderId: string) { return this.service.finalizeOrderSettlement(orderId); } @Post(':orderId/retry') retry(@Param('orderId') orderId: string) { return this.service.finalizeOrderSettlement(orderId); } }
+
+@Controller('admin/payouts')
+@UseGuards(AuthGuard, RolesGuard)
+@Roles('ADMIN')
+export class AdminPayoutController {
+  constructor(private readonly service: SettlementsService) {}
+  @Post('riders/:riderId') payout(@Param('riderId') riderId: string) { return this.service.payoutRider(riderId); }
+}
 
 @Controller('merchant')
 @UseGuards(AuthGuard, RolesGuard)

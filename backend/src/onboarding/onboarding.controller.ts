@@ -21,6 +21,7 @@ export class OnboardingController {
   @Post('admin/merchant-onboarding/:uid/verify') @Roles('ADMIN') verifyMerchant(@Param('uid') uid: string) { return this.service.verify(uid, 'MERCHANT'); }
   @Post('admin/merchant-onboarding/:uid/reject') @Roles('ADMIN') rejectMerchant(@Param('uid') uid: string, @Body('reason') reason?: string) { return this.service.reject(uid, 'MERCHANT', reason); }
   @Post('admin/merchant-onboarding/:uid/create-linked-account') @Roles('ADMIN') linkMerchant(@Param('uid') uid: string) { return this.service.createLinkedAccount(uid); }
+  @Post('admin/delivery-onboarding/:uid/setup-payout') @Roles('ADMIN') setupPayout(@Param('uid') uid: string) { return this.service.setupDeliveryPayout(uid); }
   @Get('admin/delivery-onboarding') @Roles('ADMIN') listDelivery() { return this.service.list('DELIVERY'); }
   @Get('admin/delivery-onboarding/:uid') @Roles('ADMIN') getDeliveryAdmin(@Param('uid') uid: string) { return this.service.getAdmin(uid, 'DELIVERY'); }
   @Post('admin/delivery-onboarding/:uid/verify') @Roles('ADMIN') verifyDelivery(@Param('uid') uid: string) { return this.service.verify(uid, 'DELIVERY'); }

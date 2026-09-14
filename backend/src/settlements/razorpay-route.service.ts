@@ -8,7 +8,7 @@ export class RazorpayRouteService {
   constructor(private readonly config: ConfigService) { this.keyId = this.config.get<string>('RAZORPAY_KEY_ID') ?? ''; this.keySecret = this.config.get<string>('RAZORPAY_KEY_SECRET') ?? ''; }
   private get authHeader() { return `Basic ${Buffer.from(`${this.keyId}:${this.keySecret}`).toString('base64')}`; }
   async transferPayment(input: { razorpayPaymentId: string; linkedAccountId: string; amountInPaise: number; orderId: string }) {
-    if (!this.config.get<string>('RAZORPAY_ROUTE_ENABLED') || !this.keyId || !this.keySecret) throw new BadRequestException('Razorpay Route is disabled or not configured');
+    if (this.config.get<string>('RAZORPAY_ROUTE_ENABLED') !== 'true' || !this.keyId || !this.keySecret) throw new BadRequestException('Razorpay Route is disabled or not configured');
     const response = await fetch(`https://api.razorpay.com/v1/payments/${input.razorpayPaymentId}/transfers`, { method: 'POST', headers: { Authorization: this.authHeader, 'Content-Type': 'application/json' }, body: JSON.stringify({ transfers: [{ account: input.linkedAccountId, amount: input.amountInPaise, currency: 'INR', notes: { orderId: input.orderId } }] }) });
     const data = await response.json() as any;
     if (!response.ok) throw new BadRequestException(data?.error?.description ?? 'Merchant transfer failed');

@@ -1040,6 +1040,10 @@ export class AdminService {
 
     return snapshot.data();
   }
+  async getSettlements() {
+    const snapshot = await this.firebaseService.getFirestore().collection('settlements').orderBy('createdAt', 'desc').limit(500).get();
+    return { success: true, settlements: snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })) };
+  }
   async updateSettings(data: Partial<GlobalSettingsDocument>) {
     const db = this.firebaseService.getFirestore();
 
@@ -1251,7 +1255,7 @@ export class AdminService {
 
     if (data.payments !== undefined) {
       const payments = data.payments as any;
-      if (!['PERCENTAGE', 'FIXED'].includes(payments.merchantCommission?.type) || typeof payments.merchantCommission?.value !== 'number' || payments.merchantCommission.value < 0) throw new BadRequestException('Invalid merchant commission settings');
+      if (!['PERCENTAGE', 'FIXED'].includes(payments.merchantCommission?.type) || typeof payments.merchantCommission?.value !== 'number' || payments.merchantCommission.value < 0 || (payments.merchantCommission.type === 'PERCENTAGE' && payments.merchantCommission.value > 100)) throw new BadRequestException('Invalid merchant commission settings');
       if (!['DAILY', 'WEEKLY', 'MANUAL'].includes(payments.settlement?.riderPayoutFrequency)) throw new BadRequestException('Invalid rider payout frequency');
       updates.payments = payments;
     }

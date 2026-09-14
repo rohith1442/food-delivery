@@ -439,9 +439,10 @@ export class OrdersService {
 
         const settings = settingsSnapshot.exists ? settingsSnapshot.data() ?? {} : {};
         const commissionSettings = store.commission ?? settings.payments?.merchantCommission ?? { type: 'PERCENTAGE', value: 10 };
-        const commissionAmount = commissionSettings.type === 'FIXED'
+        const rawCommission = commissionSettings.type === 'FIXED'
           ? Math.max(0, Number(commissionSettings.value ?? 0))
           : Number((subtotal * Number(commissionSettings.value ?? 10) / 100).toFixed(2));
+        const commissionAmount = Math.min(subtotal, rawCommission);
         const riderSettings = settings.payments?.riderEarning ?? { baseAmount: 30, perKmAmount: 5, minimumAmount: 30 };
         const riderEarning = Math.max(Number(riderSettings.minimumAmount ?? 30), Number(riderSettings.baseAmount ?? 30));
         const financials = {

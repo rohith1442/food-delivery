@@ -183,6 +183,10 @@ async updateZone(
   async getDashboard() {
     return this.adminService.getDashboard();
   }
+  @Get('settlements')
+  async getSettlements() {
+    return this.adminService.getSettlements();
+  }
   @Get('settings')
 async getSettings() {
   return this.adminService.getSettings();

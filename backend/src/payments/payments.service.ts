@@ -11,6 +11,7 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 import { FirebaseService } from '../firebase/firebase.service.js';
 import { CreateOrderRequest, OrdersService } from '../orders/orders.service.js';
 import { RazorpayRefundService } from './razorpay-refund.service.js';
+import { SettlementsService } from '../settlements/settlements.service.js';
 
 interface CreateRazorpayOrderRequest {
   storeId: string;
@@ -51,6 +52,7 @@ export class PaymentsService {
     private readonly firebaseService: FirebaseService,
     private readonly ordersService: OrdersService,
     private readonly razorpayRefundService: RazorpayRefundService,
+    private readonly settlementsService: SettlementsService,
   ) {
     const keyId = this.configService.get<string>('RAZORPAY_KEY_ID');
 
@@ -586,6 +588,11 @@ export class PaymentsService {
         success: true,
         duplicate: true,
       };
+    }
+
+    if (await this.settlementsService.reconcileProviderEvent(webhook.event, webhook as any)) {
+      await webhookRef.set({ eventId, event: webhook.event, status: 'PROCESSED', createdAt: new Date().toISOString() });
+      return { success: true, processed: true };
     }
 
     // --------------------------------------------
