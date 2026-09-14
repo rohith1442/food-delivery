@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'delivery_orders_api_service.dart';
+import '../../core/config/app_branding.dart';
 
 class DeliveryOrdersPage extends StatefulWidget {
   const DeliveryOrdersPage({super.key});
@@ -18,6 +19,11 @@ class _DeliveryOrdersPageState extends State<DeliveryOrdersPage> {
   bool _isLoading = true;
   String? _error;
   String? _updatingOrderId;
+
+  List<Map<String, dynamic>> get _availableOrders =>
+      orders.where((order) => order['status'] == 'READY').toList();
+  List<Map<String, dynamic>> get _activeOrders =>
+      orders.where((order) => order['status'] != 'READY').toList();
 
   @override
   void initState() {
@@ -121,7 +127,9 @@ class _DeliveryOrdersPageState extends State<DeliveryOrdersPage> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Enter the OTP provided by the customer.'),
+                const Text(
+                  'Ask the customer for their 4-digit OTP, then enter it here.',
+                ),
                 const SizedBox(height: 12),
 
                 // DEVELOPMENT ONLY.
@@ -134,7 +142,9 @@ class _DeliveryOrdersPageState extends State<DeliveryOrdersPage> {
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
-                    'Test OTP: $generatedOtp',
+                    generatedOtp == null
+                        ? 'OTP sent to customer'
+                        : 'Development OTP: $generatedOtp',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 18,
@@ -293,16 +303,18 @@ class _DeliveryOrdersPageState extends State<DeliveryOrdersPage> {
       );
     }
 
+    final visibleOrders = [..._activeOrders, ..._availableOrders];
     return ListView.builder(
       padding: const EdgeInsets.all(16),
-      itemCount: orders.length,
+      itemCount: visibleOrders.length,
       itemBuilder: (context, index) {
-        final order = orders[index];
+        final order = visibleOrders[index];
 
         final orderId = order['id']?.toString() ?? '';
 
         return _DeliveryCard(
           order: order,
+          allowAccept: _activeOrders.isEmpty,
           isUpdating: _updatingOrderId == orderId,
           onAccept: () {
             _acceptOrder(orderId);
@@ -322,6 +334,7 @@ class _DeliveryOrdersPageState extends State<DeliveryOrdersPage> {
 class _DeliveryCard extends StatelessWidget {
   const _DeliveryCard({
     required this.order,
+    required this.allowAccept,
     required this.onAccept,
     required this.onUpdateStatus,
     required this.onCompleteDelivery,
@@ -329,6 +342,7 @@ class _DeliveryCard extends StatelessWidget {
   });
 
   final Map<String, dynamic> order;
+  final bool allowAccept;
 
   final VoidCallback onAccept;
 
@@ -454,7 +468,7 @@ class _DeliveryCard extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  '₹$total',
+                  '${AppBrandingController.instance.branding.currencySymbol}$total',
                   style: TextStyle(
                     fontSize: 17,
                     fontWeight: FontWeight.bold,
@@ -537,6 +551,10 @@ class _DeliveryCard extends StatelessWidget {
 
             const SizedBox(height: 16),
 
+            _DeliveryProgress(status: status),
+
+            const SizedBox(height: 16),
+
             if (isUpdating)
               const SizedBox(
                 width: double.infinity,
@@ -555,8 +573,10 @@ class _DeliveryCard extends StatelessWidget {
       return SizedBox(
         width: double.infinity,
         child: FilledButton(
-          onPressed: onAccept,
-          child: const Text('Accept Delivery'),
+          onPressed: allowAccept ? onAccept : null,
+          child: Text(
+            allowAccept ? 'Accept Delivery' : 'Finish current delivery first',
+          ),
         ),
       );
     }
@@ -636,6 +656,62 @@ class _DeliveryCard extends StatelessWidget {
     }
 
     return orderId.substring(0, 8);
+  }
+}
+
+class _DeliveryProgress extends StatelessWidget {
+  const _DeliveryProgress({required this.status});
+  final String status;
+  static const steps = [
+    'RIDER_ASSIGNED',
+    'PICKED_UP',
+    'ON_THE_WAY',
+    'DELIVERED',
+  ];
+  @override
+  Widget build(BuildContext context) {
+    if (status == 'READY') return const SizedBox.shrink();
+    final current = steps.indexOf(status);
+    const labels = ['Accepted', 'Picked up', 'On the way', 'Delivered'];
+    return Column(
+      children: List.generate(steps.length, (index) {
+        final completed = index <= current;
+        final color = completed
+            ? Theme.of(context).colorScheme.primary
+            : Theme.of(context).colorScheme.outline;
+        return Row(
+          children: [
+            Column(
+              children: [
+                Icon(
+                  completed ? Icons.check_circle : Icons.radio_button_unchecked,
+                  size: 22,
+                  color: color,
+                ),
+                if (index != steps.length - 1)
+                  Container(
+                    width: 2,
+                    height: 22,
+                    color: completed
+                        ? color
+                        : Theme.of(context).colorScheme.outlineVariant,
+                  ),
+              ],
+            ),
+            const SizedBox(width: 10),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 22),
+              child: Text(
+                labels[index],
+                style: TextStyle(
+                  fontWeight: completed ? FontWeight.w700 : FontWeight.normal,
+                ),
+              ),
+            ),
+          ],
+        );
+      }),
+    );
   }
 }
 

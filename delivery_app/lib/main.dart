@@ -3,13 +3,14 @@ import 'package:flutter/material.dart';
 
 import 'firebase_options.dart';
 import 'routes/app_router.dart';
+import 'core/config/app_branding.dart';
+import 'core/theme/delivery_theme.dart';
+import 'screens/system/app_startup_gate.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   runApp(const DeliveryApp());
 }
@@ -19,24 +20,19 @@ class DeliveryApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp.router(
-      title: 'Delivery Partner',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFFFF5722),
-        ),
-        scaffoldBackgroundColor: Colors.white,
-        inputDecorationTheme: InputDecorationTheme(
-          filled: true,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide.none,
-          ),
-        ),
-      ),
-      routerConfig: AppRouter.router,
+    return AnimatedBuilder(
+      animation: AppBrandingController.instance,
+      builder: (context, child) {
+        final branding = AppBrandingController.instance.branding;
+        return MaterialApp.router(
+          title: branding.appName,
+          debugShowCheckedModeBanner: false,
+          theme: DeliveryTheme.fromBranding(branding),
+          routerConfig: AppRouter.router,
+          builder: (context, child) =>
+              AppStartupGate(child: child ?? const SizedBox.shrink()),
+        );
+      },
     );
   }
 }

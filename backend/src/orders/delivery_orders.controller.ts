@@ -27,6 +27,11 @@ export class DeliveryOrdersController {
     return this.ordersService.getDeliveryOrders(request.user.uid);
   }
 
+  @Get('history')
+  async getHistory(@Req() request: any) {
+    return this.ordersService.getDeliveryHistory(request.user.uid);
+  }
+
   @Patch(':orderId/accept')
   async acceptOrder(
     @Req() request: any,

@@ -2,18 +2,21 @@ import 'package:dio/dio.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 import '../core/network/api_base_url.dart';
+import '../core/config/app_branding.dart';
 
 class AppConfigResult {
   final bool maintenanceMode;
   final bool updateRequired;
   final String currentVersion;
   final String minimumVersion;
+  final AppBranding branding;
 
   const AppConfigResult({
     required this.maintenanceMode,
     required this.updateRequired,
     required this.currentVersion,
     required this.minimumVersion,
+    required this.branding,
   });
 }
 
@@ -39,6 +42,11 @@ class AppConfigService {
     final forceUpdate = data['forceUpdate'] == true;
 
     final minimumVersion = data['minimumVersion']?.toString() ?? '1.0.0';
+    final branding = AppBranding.fromJson(
+      data['branding'] is Map
+          ? Map<String, dynamic>.from(data['branding'] as Map)
+          : null,
+    );
 
     final packageInfo = await PackageInfo.fromPlatform();
 
@@ -50,6 +58,7 @@ class AppConfigService {
           forceUpdate && _isVersionLower(currentVersion, minimumVersion),
       currentVersion: currentVersion,
       minimumVersion: minimumVersion,
+      branding: branding,
     );
   }
 

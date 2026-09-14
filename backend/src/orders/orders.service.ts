@@ -1587,6 +1587,16 @@ export class OrdersService {
     };
   }
 
+  async getDeliveryHistory(riderId: string) {
+    const snapshot = await this.firebaseService.getFirestore()
+      .collection('orders').where('riderId', '==', riderId).get();
+    const orders = snapshot.docs
+      .map((doc) => ({ id: doc.id, ...doc.data() } as OrderDocument))
+      .filter((order) => order.status === 'DELIVERED')
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+    return { success: true, orders: orders.map((order) => this.buildDeliveryOrderResponse(order, riderId)) };
+  }
+
   async acceptDeliveryOrder(
     orderId: string,
     riderId: string,
@@ -1888,6 +1898,16 @@ export class OrdersService {
         updatedAt: deliveryOtpCreatedAt,
       });
     });
+
+    const orderSnapshot = await orderRef.get();
+    if (orderSnapshot.exists) {
+      const order = { id: orderSnapshot.id, ...orderSnapshot.data() } as OrderDocument;
+      await this.notificationsService.sendToUser(order.customerId, {
+        title: 'Delivery OTP',
+        body: `Your delivery OTP is ${otp}. Share it only after receiving your order.`,
+        data: { type: 'DELIVERY_OTP', orderId, expiresAt: deliveryOtpExpiresAt },
+      });
+    }
 
     const response: {
       success: true;

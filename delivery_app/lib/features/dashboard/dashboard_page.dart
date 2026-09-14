@@ -2,20 +2,25 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/network/api_client.dart';
+import '../../core/network/api_client.dart';
 import '../orders/orders_page.dart';
+import '../../core/config/app_branding.dart';
+import '../earnings/earnings_page.dart';
+import '../notifications/notifications_page.dart';
+import '../profile/profile_page.dart';
+import '../orders/delivery_orders_api_service.dart';
 
 class DeliveryDashboardPage extends StatefulWidget {
   const DeliveryDashboardPage({super.key});
 
   @override
-  State<DeliveryDashboardPage> createState() =>
-      _DeliveryDashboardPageState();
+  State<DeliveryDashboardPage> createState() => _DeliveryDashboardPageState();
 }
 
-class _DeliveryDashboardPageState
-    extends State<DeliveryDashboardPage> {
+class _DeliveryDashboardPageState extends State<DeliveryDashboardPage> {
   final ApiClient _apiClient = ApiClient();
+  final DeliveryOrdersApiService _ordersService = DeliveryOrdersApiService();
+  List<Map<String, dynamic>> _history = [];
 
   bool _isLoadingProfile = true;
   bool _isUpdatingAvailability = false;
@@ -37,32 +42,30 @@ class _DeliveryDashboardPageState
         _isLoadingProfile = true;
       });
 
-      final response = await _apiClient.get(
-        '/delivery/profile',
-      );
+      final results = await Future.wait([
+        _apiClient.get('/delivery/profile'),
+        _ordersService.getHistory(),
+      ]);
+      final response = results[0] as dynamic;
+      final history = results[1] as List<Map<String, dynamic>>;
 
       final data = response.data;
 
-      final profile =
-          data is Map<String, dynamic>
-              ? data['profile']
-              : null;
+      final profile = data is Map<String, dynamic> ? data['profile'] : null;
 
       if (!mounted) return;
 
       setState(() {
-        _zoneId =
-            profile is Map<String, dynamic>
-                ? profile['zoneId'] as String?
-                : null;
+        _history = history;
+        _zoneId = profile is Map<String, dynamic>
+            ? profile['zoneId'] as String?
+            : null;
 
         _isOnline =
-            profile is Map<String, dynamic> &&
-            profile['isOnline'] == true;
+            profile is Map<String, dynamic> && profile['isOnline'] == true;
 
         _isAvailable =
-            profile is Map<String, dynamic> &&
-            profile['isAvailable'] == true;
+            profile is Map<String, dynamic> && profile['isAvailable'] == true;
 
         _isLoadingProfile = false;
       });
@@ -74,26 +77,15 @@ class _DeliveryDashboardPageState
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Unable to load delivery profile',
-          ),
-        ),
+        const SnackBar(content: Text('Unable to load delivery profile')),
       );
     }
   }
 
-  Future<void> _updateAvailability(
-    bool value,
-  ) async {
-    if (_zoneId == null ||
-        _zoneId!.trim().isEmpty) {
+  Future<void> _updateAvailability(bool value) async {
+    if (_zoneId == null || _zoneId!.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Delivery zone is not configured',
-          ),
-        ),
+        const SnackBar(content: Text('Delivery zone is not configured')),
       );
 
       return;
@@ -106,29 +98,21 @@ class _DeliveryDashboardPageState
 
       final response = await _apiClient.patch(
         '/delivery/profile/availability',
-        data: {
-          'zoneId': _zoneId,
-          'isOnline': value,
-        },
+        data: {'zoneId': _zoneId, 'isOnline': value},
       );
 
       final data = response.data;
 
-      final profile =
-          data is Map<String, dynamic>
-              ? data['profile']
-              : null;
+      final profile = data is Map<String, dynamic> ? data['profile'] : null;
 
       if (!mounted) return;
 
       setState(() {
         _isOnline =
-            profile is Map<String, dynamic> &&
-            profile['isOnline'] == true;
+            profile is Map<String, dynamic> && profile['isOnline'] == true;
 
         _isAvailable =
-            profile is Map<String, dynamic> &&
-            profile['isAvailable'] == true;
+            profile is Map<String, dynamic> && profile['isAvailable'] == true;
 
         _isUpdatingAvailability = false;
       });
@@ -136,9 +120,7 @@ class _DeliveryDashboardPageState
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            _isOnline
-                ? 'You are now online'
-                : 'You are now offline',
+            _isOnline ? 'You are now online' : 'You are now offline',
           ),
         ),
       );
@@ -150,18 +132,40 @@ class _DeliveryDashboardPageState
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Unable to update availability',
-          ),
-        ),
+        const SnackBar(content: Text('Unable to update availability')),
       );
     }
   }
 
-  Future<void> _logout(
-    BuildContext context,
-  ) async {
+  String get _greeting {
+    final hour = DateTime.now().hour;
+    return hour < 12
+        ? 'Good morning 👋'
+        : hour < 17
+        ? 'Good afternoon 👋'
+        : 'Good evening 👋';
+  }
+
+  bool _isToday(Map<String, dynamic> order) {
+    final date = DateTime.tryParse(order['updatedAt']?.toString() ?? '')
+        ?.toLocal();
+    final now = DateTime.now();
+    return date != null &&
+        date.year == now.year &&
+        date.month == now.month &&
+        date.day == now.day;
+  }
+
+  int get _todayDeliveries => _history.where(_isToday).length;
+  double get _todayEarnings => _history.where(_isToday).fold(0.0, (sum, order) {
+    final fee = order['deliveryFee'];
+    return sum +
+        (fee is num
+            ? fee.toDouble()
+            : double.tryParse(fee?.toString() ?? '') ?? 0);
+  });
+
+  Future<void> _logout(BuildContext context) async {
     await FirebaseAuth.instance.signOut();
 
     if (!context.mounted) return;
@@ -173,48 +177,37 @@ class _DeliveryDashboardPageState
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'Delivery Dashboard',
-        ),
+        title: const Text('Delivery Dashboard'),
         actions: [
           IconButton(
             tooltip: 'Refresh',
-            onPressed:
-                _isLoadingProfile
-                    ? null
-                    : _loadProfile,
-            icon: const Icon(
-              Icons.refresh,
-            ),
+            onPressed: _isLoadingProfile ? null : _loadProfile,
+            icon: const Icon(Icons.refresh),
           ),
           IconButton(
-            onPressed: () {},
-            icon: const Icon(
-              Icons.notifications_outlined,
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => const DeliveryNotificationsPage(),
+              ),
             ),
+            icon: const Icon(Icons.notifications_outlined),
           ),
           IconButton(
             tooltip: 'Logout',
             onPressed: () => _logout(context),
-            icon: const Icon(
-              Icons.logout,
-            ),
+            icon: const Icon(Icons.logout),
           ),
         ],
       ),
       body: RefreshIndicator(
         onRefresh: _loadProfile,
         child: ListView(
-          physics:
-              const AlwaysScrollableScrollPhysics(),
+          physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.all(20),
           children: [
-            const Text(
-              'Good afternoon 👋',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
+            Text(
+              _greeting,
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
             ),
 
             const SizedBox(height: 4),
@@ -223,10 +216,7 @@ class _DeliveryDashboardPageState
               'Ready to deliver?',
               style: TextStyle(
                 fontSize: 16,
-                color:
-                    Theme.of(context)
-                        .colorScheme
-                        .onSurfaceVariant,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ),
 
@@ -238,50 +228,38 @@ class _DeliveryDashboardPageState
 
             Card(
               child: Padding(
-                padding:
-                    const EdgeInsets.all(20),
+                padding: const EdgeInsets.all(20),
                 child: Row(
                   children: [
                     Container(
                       width: 56,
                       height: 56,
                       decoration: BoxDecoration(
-                        color:
-                            Theme.of(context)
-                                .colorScheme
-                                .primaryContainer,
+                        color: Theme.of(context).colorScheme.primaryContainer,
                         shape: BoxShape.circle,
                       ),
                       child: Icon(
-                        Icons
-                            .account_balance_wallet_outlined,
-                        color:
-                            Theme.of(context)
-                                .colorScheme
-                                .primary,
+                        Icons.account_balance_wallet_outlined,
+                        color: Theme.of(context).colorScheme.primary,
                       ),
                     ),
 
                     const SizedBox(width: 16),
 
-                    const Expanded(
+                    Expanded(
                       child: Column(
-                        crossAxisAlignment:
-                            CrossAxisAlignment.start,
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
                             "Today's Earnings",
-                            style: TextStyle(
-                              fontSize: 13,
-                            ),
+                            style: TextStyle(fontSize: 13),
                           ),
                           SizedBox(height: 4),
                           Text(
-                            '₹850',
+                            '${AppBrandingController.instance.branding.currencySymbol}${_todayEarnings.toStringAsFixed(0)}',
                             style: TextStyle(
                               fontSize: 26,
-                              fontWeight:
-                                  FontWeight.bold,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
                         ],
@@ -289,9 +267,10 @@ class _DeliveryDashboardPageState
                     ),
 
                     TextButton(
-                      onPressed: () {},
-                      child:
-                          const Text('Details'),
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const EarningsPage()),
+                      ),
+                      child: const Text('Details'),
                     ),
                   ],
                 ),
@@ -304,11 +283,9 @@ class _DeliveryDashboardPageState
               children: [
                 Expanded(
                   child: _StatCard(
-                    icon:
-                        Icons
-                            .local_shipping_outlined,
-                    title: 'Deliveries',
-                    value: '8',
+                    icon: Icons.local_shipping_outlined,
+                    title: 'Today',
+                    value: '$_todayDeliveries',
                   ),
                 ),
 
@@ -316,9 +293,9 @@ class _DeliveryDashboardPageState
 
                 Expanded(
                   child: _StatCard(
-                    icon: Icons.star_outline,
-                    title: 'Rating',
-                    value: '4.8',
+                    icon: Icons.check_circle_outline,
+                    title: 'Completed',
+                    value: '${_history.length}',
                   ),
                 ),
               ],
@@ -328,14 +305,8 @@ class _DeliveryDashboardPageState
 
             Text(
               'Quick Actions',
-              style:
-                  Theme.of(context)
-                      .textTheme
-                      .titleLarge
-                      ?.copyWith(
-                        fontWeight:
-                            FontWeight.bold,
-                      ),
+              style: Theme.of(context).textTheme.titleLarge
+                  ?.copyWith(fontWeight: FontWeight.bold),
             ),
 
             const SizedBox(height: 12),
@@ -344,95 +315,76 @@ class _DeliveryDashboardPageState
               child: ListTile(
                 onTap: () {
                   Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder:
-                          (_) =>
-                              DeliveryOrdersPage(),
-                    ),
+                    MaterialPageRoute(builder: (_) => DeliveryOrdersPage()),
                   );
                 },
                 leading: Icon(
                   Icons.local_shipping_outlined,
-                  color:
-                      Theme.of(context)
-                          .colorScheme
-                          .primary,
+                  color: Theme.of(context).colorScheme.primary,
                 ),
                 title: const Text(
                   'Available Deliveries',
-                  style: TextStyle(
-                    fontWeight:
-                        FontWeight.bold,
-                  ),
+                  style: TextStyle(fontWeight: FontWeight.bold),
                 ),
-                subtitle: const Text(
-                  'View nearby delivery requests',
-                ),
-                trailing: const Icon(
-                  Icons.chevron_right,
-                ),
+                subtitle: const Text('View nearby delivery requests'),
+                trailing: const Icon(Icons.chevron_right),
               ),
             ),
 
             Card(
               child: ListTile(
-                onTap: () {},
+                onTap: () => Navigator.of(
+                  context,
+                ).push(MaterialPageRoute(builder: (_) => const EarningsPage())),
                 leading: Icon(
-                  Icons
-                      .account_balance_wallet_outlined,
-                  color:
-                      Theme.of(context)
-                          .colorScheme
-                          .primary,
+                  Icons.account_balance_wallet_outlined,
+                  color: Theme.of(context).colorScheme.primary,
                 ),
                 title: const Text(
                   'Earnings',
-                  style: TextStyle(
-                    fontWeight:
-                        FontWeight.bold,
-                  ),
+                  style: TextStyle(fontWeight: FontWeight.bold),
                 ),
-                subtitle: const Text(
-                  'View your earnings history',
-                ),
-                trailing: const Icon(
-                  Icons.chevron_right,
-                ),
+                subtitle: const Text('View your earnings history'),
+                trailing: const Icon(Icons.chevron_right),
               ),
             ),
           ],
         ),
       ),
-      bottomNavigationBar:
-          NavigationBar(
+      bottomNavigationBar: NavigationBar(
         selectedIndex: 0,
+        onDestinationSelected: (index) {
+          if (index == 1) {
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const DeliveryOrdersPage()),
+            );
+          }
+          if (index == 2) {
+            Navigator.of(context)
+                .push(MaterialPageRoute(builder: (_) => const EarningsPage()));
+          }
+          if (index == 3) {
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const DeliveryProfilePage()),
+            );
+          }
+        },
         destinations: [
           NavigationDestination(
-            icon: Icon(
-              Icons.dashboard_outlined,
-            ),
-            selectedIcon: Icon(
-              Icons.dashboard,
-            ),
+            icon: Icon(Icons.dashboard_outlined),
+            selectedIcon: Icon(Icons.dashboard),
             label: 'Dashboard',
           ),
           NavigationDestination(
-            icon: Icon(
-              Icons.local_shipping_outlined,
-            ),
+            icon: Icon(Icons.local_shipping_outlined),
             label: 'Deliveries',
           ),
           NavigationDestination(
-            icon: Icon(
-              Icons
-                  .account_balance_wallet_outlined,
-            ),
+            icon: Icon(Icons.account_balance_wallet_outlined),
             label: 'Earnings',
           ),
           NavigationDestination(
-            icon: Icon(
-              Icons.person_outline,
-            ),
+            icon: Icon(Icons.person_outline),
             label: 'Profile',
           ),
         ],
@@ -440,17 +392,12 @@ class _DeliveryDashboardPageState
     );
   }
 
-  Widget _buildAvailabilityCard(
-    BuildContext context,
-  ) {
+  Widget _buildAvailabilityCard(BuildContext context) {
     if (_isLoadingProfile) {
       return const Card(
         child: Padding(
           padding: EdgeInsets.all(20),
-          child: Center(
-            child:
-                CircularProgressIndicator(),
-          ),
+          child: Center(child: CircularProgressIndicator()),
         ),
       );
     }
@@ -466,30 +413,18 @@ class _DeliveryDashboardPageState
                   width: 48,
                   height: 48,
                   decoration: BoxDecoration(
-                    color:
-                        _isOnline
-                            ? Theme.of(context)
-                                .colorScheme
-                                .primaryContainer
-                            : Theme.of(context)
-                                .colorScheme
-                                .surfaceContainerHighest,
+                    color: _isOnline
+                        ? Theme.of(context).colorScheme.primaryContainer
+                        : Theme.of(context).colorScheme.surfaceContainerHighest,
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
                     _isOnline
-                        ? Icons
-                            .radio_button_checked
-                        : Icons
-                            .radio_button_off,
-                    color:
-                        _isOnline
-                            ? Theme.of(context)
-                                .colorScheme
-                                .primary
-                            : Theme.of(context)
-                                .colorScheme
-                                .onSurfaceVariant,
+                        ? Icons.radio_button_checked
+                        : Icons.radio_button_off,
+                    color: _isOnline
+                        ? Theme.of(context).colorScheme.primary
+                        : Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
 
@@ -497,18 +432,13 @@ class _DeliveryDashboardPageState
 
                 Expanded(
                   child: Column(
-                    crossAxisAlignment:
-                        CrossAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        _isOnline
-                            ? 'You are Online'
-                            : 'You are Offline',
-                        style:
-                            const TextStyle(
+                        _isOnline ? 'You are Online' : 'You are Offline',
+                        style: const TextStyle(
                           fontSize: 17,
-                          fontWeight:
-                              FontWeight.bold,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
 
@@ -517,14 +447,11 @@ class _DeliveryDashboardPageState
                       Text(
                         _isOnline
                             ? _isAvailable
-                                ? 'Ready to receive deliveries'
-                                : 'Currently handling a delivery'
+                                  ? 'Ready to receive deliveries'
+                                  : 'Currently handling a delivery'
                             : 'Go online to receive deliveries',
                         style: TextStyle(
-                          color:
-                              Theme.of(context)
-                                  .colorScheme
-                                  .onSurfaceVariant,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                       ),
                     ],
@@ -535,17 +462,10 @@ class _DeliveryDashboardPageState
                   const SizedBox(
                     width: 26,
                     height: 26,
-                    child:
-                        CircularProgressIndicator(
-                      strokeWidth: 2,
-                    ),
+                    child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 else
-                  Switch(
-                    value: _isOnline,
-                    onChanged:
-                        _updateAvailability,
-                  ),
+                  Switch(value: _isOnline, onChanged: _updateAvailability),
               ],
             ),
 
@@ -553,30 +473,19 @@ class _DeliveryDashboardPageState
 
             Row(
               children: [
-                const Icon(
-                  Icons.location_on_outlined,
-                  size: 20,
-                ),
+                const Icon(Icons.location_on_outlined, size: 20),
 
                 const SizedBox(width: 8),
 
-                const Text(
-                  'Delivery Zone',
-                ),
+                const Text('Delivery Zone'),
 
                 const Spacer(),
 
                 Flexible(
                   child: Text(
-                    _zoneId ??
-                        'Not configured',
-                    overflow:
-                        TextOverflow.ellipsis,
-                    style:
-                        const TextStyle(
-                      fontWeight:
-                          FontWeight.w600,
-                    ),
+                    _zoneId ?? 'Not configured',
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.w600),
                   ),
                 ),
               ],
@@ -601,43 +510,26 @@ class _StatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color =
-        Theme.of(context).colorScheme.primary;
+    final color = Theme.of(context).colorScheme.primary;
 
     return Card(
       child: Padding(
-        padding:
-            const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(16),
         child: Column(
-          crossAxisAlignment:
-              CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(
-              icon,
-              color: color,
-            ),
+            Icon(icon, color: color),
 
             const SizedBox(height: 12),
 
             Text(
               value,
-              style:
-                  const TextStyle(
-                fontSize: 24,
-                fontWeight:
-                    FontWeight.bold,
-              ),
+              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
             ),
 
             const SizedBox(height: 4),
 
-            Text(
-              title,
-              style:
-                  const TextStyle(
-                fontSize: 13,
-              ),
-            ),
+            Text(title, style: const TextStyle(fontSize: 13)),
           ],
         ),
       ),

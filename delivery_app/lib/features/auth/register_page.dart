@@ -9,19 +9,16 @@ class DeliveryRegisterPage extends StatefulWidget {
   const DeliveryRegisterPage({super.key});
 
   @override
-  State<DeliveryRegisterPage> createState() =>
-      _DeliveryRegisterPageState();
+  State<DeliveryRegisterPage> createState() => _DeliveryRegisterPageState();
 }
 
-class _DeliveryRegisterPageState
-    extends State<DeliveryRegisterPage> {
+class _DeliveryRegisterPageState extends State<DeliveryRegisterPage> {
   final _formKey = GlobalKey<FormState>();
 
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _confirmPasswordController =
-  TextEditingController();
+  final _confirmPasswordController = TextEditingController();
 
   final ApiClient _apiClient = ApiClient();
 
@@ -51,9 +48,9 @@ class _DeliveryRegisterPageState
     try {
       final credential = await FirebaseAuth.instance
           .createUserWithEmailAndPassword(
-        email: _emailController.text.trim(),
-        password: _passwordController.text,
-      );
+            email: _emailController.text.trim(),
+            password: _passwordController.text,
+          );
 
       firebaseUser = credential.user;
 
@@ -63,18 +60,14 @@ class _DeliveryRegisterPageState
 
       await _apiClient.post(
         '/auth/register/delivery',
-        data: {
-          'name': _nameController.text.trim(),
-        },
+        data: {'name': _nameController.text.trim()},
       );
 
       if (!mounted) return;
 
       context.go('/approval-pending');
     } on FirebaseAuthException catch (error) {
-      _showError(
-        error.message ?? 'Registration failed',
-      );
+      _showError(error.message ?? 'Registration failed');
     } on DioException catch (error) {
       try {
         await firebaseUser?.delete();
@@ -86,8 +79,7 @@ class _DeliveryRegisterPageState
 
       String message = 'Registration failed';
 
-      if (response is Map &&
-          response['message'] != null) {
+      if (response is Map && response['message'] != null) {
         final backendMessage = response['message'];
 
         if (backendMessage is List) {
@@ -105,9 +97,7 @@ class _DeliveryRegisterPageState
         await FirebaseAuth.instance.signOut();
       }
 
-      _showError(
-        'Something went wrong. Please try again.',
-      );
+      _showError('Something went wrong. Please try again.');
     } finally {
       if (mounted) {
         setState(() {
@@ -120,21 +110,14 @@ class _DeliveryRegisterPageState
   void _showError(String message) {
     if (!mounted) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-      ),
-    );
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'Delivery Partner Registration',
-        ),
-      ),
+      appBar: AppBar(title: const Text('Delivery Partner Registration')),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
@@ -144,12 +127,9 @@ class _DeliveryRegisterPageState
               children: [
                 TextFormField(
                   controller: _nameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Full Name',
-                  ),
+                  decoration: const InputDecoration(labelText: 'Full Name'),
                   validator: (value) {
-                    if (value == null ||
-                        value.trim().isEmpty) {
+                    if (value == null || value.trim().isEmpty) {
                       return 'Name is required';
                     }
 
@@ -159,14 +139,10 @@ class _DeliveryRegisterPageState
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _emailController,
-                  keyboardType:
-                  TextInputType.emailAddress,
-                  decoration: const InputDecoration(
-                    labelText: 'Email',
-                  ),
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: const InputDecoration(labelText: 'Email'),
                   validator: (value) {
-                    if (value == null ||
-                        value.trim().isEmpty) {
+                    if (value == null || value.trim().isEmpty) {
                       return 'Email is required';
                     }
 
@@ -186,8 +162,7 @@ class _DeliveryRegisterPageState
                     suffixIcon: IconButton(
                       onPressed: () {
                         setState(() {
-                          _obscurePassword =
-                          !_obscurePassword;
+                          _obscurePassword = !_obscurePassword;
                         });
                       },
                       icon: Icon(
@@ -198,8 +173,7 @@ class _DeliveryRegisterPageState
                     ),
                   ),
                   validator: (value) {
-                    if (value == null ||
-                        value.isEmpty) {
+                    if (value == null || value.isEmpty) {
                       return 'Password is required';
                     }
 
@@ -212,15 +186,13 @@ class _DeliveryRegisterPageState
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
-                  controller:
-                  _confirmPasswordController,
+                  controller: _confirmPasswordController,
                   obscureText: true,
                   decoration: const InputDecoration(
                     labelText: 'Confirm Password',
                   ),
                   validator: (value) {
-                    if (value !=
-                        _passwordController.text) {
+                    if (value != _passwordController.text) {
                       return 'Passwords do not match';
                     }
 
@@ -232,31 +204,20 @@ class _DeliveryRegisterPageState
                   width: double.infinity,
                   height: 52,
                   child: FilledButton(
-                    onPressed:
-                    _loading ? null : _register,
+                    onPressed: _loading ? null : _register,
                     child: _loading
                         ? const SizedBox(
-                      width: 22,
-                      height: 22,
-                      child:
-                      CircularProgressIndicator(
-                        strokeWidth: 2,
-                      ),
-                    )
-                        : const Text(
-                      'Register',
-                    ),
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Text('Register'),
                   ),
                 ),
                 const SizedBox(height: 12),
                 TextButton(
-                  onPressed: _loading
-                      ? null
-                      : () =>
-                      context.go('/login'),
-                  child: const Text(
-                    'Already have an account? Login',
-                  ),
+                  onPressed: _loading ? null : () => context.go('/login'),
+                  child: const Text('Already have an account? Login'),
                 ),
               ],
             ),
