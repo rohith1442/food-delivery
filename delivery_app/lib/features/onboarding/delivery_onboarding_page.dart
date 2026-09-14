@@ -149,6 +149,29 @@ class _DeliveryOnboardingPageState extends State<DeliveryOnboardingPage> {
       ),
     ),
   );
+  Future<void> _pickDate(TextEditingController controller) async {
+    final now = DateTime.now();
+    final selected = await showDatePicker(
+      context: context,
+      initialDate: now,
+      firstDate: DateTime(1950),
+      lastDate: DateTime(now.year + 20),
+    );
+    if (selected != null) {
+      controller.text =
+          '${selected.year.toString().padLeft(4, '0')}-${selected.month.toString().padLeft(2, '0')}-${selected.day.toString().padLeft(2, '0')}';
+    }
+  }
+
+  Widget _dateField(String label, TextEditingController controller) => Padding(
+    padding: const EdgeInsets.only(bottom: 14),
+    child: TextField(
+      controller: controller,
+      readOnly: true,
+      onTap: () => _pickDate(controller),
+      decoration: InputDecoration(labelText: label),
+    ),
+  );
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(title: const Text('Delivery Verification')),
@@ -158,7 +181,7 @@ class _DeliveryOnboardingPageState extends State<DeliveryOnboardingPage> {
         _field('Legal name', _name),
         _field('Phone', _phone),
         _field('Email', _email, optional: true),
-        _field('Date of birth', _dob),
+        _dateField('Date of birth', _dob),
         _field('Address', _address),
         _field('PAN', _pan),
         DropdownButtonFormField<String>(
@@ -176,8 +199,8 @@ class _DeliveryOnboardingPageState extends State<DeliveryOnboardingPage> {
         if (_needsVehicleDocuments) ...[
           _field('Vehicle number', _vehicleNumber),
           _field('Driving licence number', _licence),
-          _field('Driving licence expiry', _licenceExpiry),
-          _field('Insurance expiry', _insuranceExpiry),
+          _dateField('Driving licence expiry', _licenceExpiry),
+          _dateField('Insurance expiry', _insuranceExpiry),
         ],
         const SizedBox(height: 18),
         Text('Bank Details', style: Theme.of(context).textTheme.titleLarge),
@@ -191,9 +214,9 @@ class _DeliveryOnboardingPageState extends State<DeliveryOnboardingPage> {
           _documentTile('INSURANCE', 'Vehicle insurance'),
         ],
         _field('Beneficiary name', _beneficiary),
-        _field('Account number', _account, optional: true),
-        _field('Confirm account number', _confirm, optional: true),
-        _field('IFSC', _ifsc, optional: true),
+        _field('Account number', _account),
+        _field('Confirm account number', _confirm),
+        _field('IFSC', _ifsc),
         _field('UPI ID', _upi, optional: true),
         if (_error != null)
           Padding(

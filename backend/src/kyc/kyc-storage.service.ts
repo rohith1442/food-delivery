@@ -1,13 +1,13 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import crypto from 'node:crypto';
 
 @Injectable()
 export class KycStorageService {
   private readonly root: string;
-  constructor(private readonly config: ConfigService) { this.root = this.config.get<string>('KYC_UPLOAD_DIR') ?? path.join(process.cwd(), 'private-kyc'); }
+  constructor(private readonly config: ConfigService) { this.root = path.resolve(this.config.get<string>('KYC_UPLOAD_DIR') ?? path.join(process.cwd(), 'private-kyc')); }
   async upload(input: { uid: string; role: 'MERCHANT' | 'DELIVERY'; type: string; file: Express.Multer.File }) {
     const allowedTypes = input.role === 'MERCHANT' ? ['PAN', 'GST', 'FSSAI', 'BANK_PROOF', 'BUSINESS_PROOF', 'TRADE_LICENSE'] : ['PROFILE_PHOTO', 'IDENTITY_PROOF', 'PAN', 'DRIVING_LICENCE', 'RC', 'INSURANCE', 'BANK_PROOF'];
     if (!allowedTypes.includes(input.type.toUpperCase())) throw new BadRequestException('Unsupported document type');
@@ -26,5 +26,6 @@ export class KycStorageService {
     if (!normalized || normalized.startsWith('/') || normalized.split('/').includes('..')) throw new BadRequestException('Invalid private document key');
     return path.join(this.root, normalized);
   }
+  async delete(objectKey: string) { await rm(this.getPrivatePath(objectKey), { force: true }); }
   private extensionForMime(mime: string) { return mime === 'image/jpeg' ? '.jpg' : mime === 'image/png' ? '.png' : '.pdf'; }
 }
