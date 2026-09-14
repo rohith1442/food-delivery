@@ -21,6 +21,7 @@ import { SearchModule } from './search/search.module.js';
 import { ReviewsModule } from './reviews/reviews.module.js';
 import { SettlementsModule } from './settlements/settlements.module.js';
 import { OnboardingModule } from './onboarding/onboarding.module.js';
+import { KycModule } from './kyc/kyc.module.js';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -44,6 +45,7 @@ import { OnboardingModule } from './onboarding/onboarding.module.js';
     ReviewsModule,
     SettlementsModule,
     OnboardingModule,
+    KycModule,
   ],
   controllers: [AppController],
   providers: [AppService],

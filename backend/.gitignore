@@ -64,3 +64,4 @@ config/firebase-service-account.json
 !.env.example
 
 *.tsbuildinfo
+private-kyc/

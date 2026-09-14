@@ -48,7 +48,7 @@ export class SettlementsService {
       const transferId = transfer?.items?.[0]?.id ?? transfer?.transfers?.[0]?.id ?? transfer?.id ?? null;
       await merchantRef.set({ providerTransferId: transferId, status: 'PROCESSING', failureReason: null, updatedAt: new Date().toISOString() }, { merge: true });
     } catch (error) {
-      await merchantRef.set({ status: 'FAILED', failureReason: error instanceof Error ? error.message : String(error), updatedAt: new Date().toISOString() }, { merge: true });
+      await merchantRef.set({ status: 'ON_HOLD', reconciliationRequired: true, failureReason: error instanceof Error ? error.message : String(error), updatedAt: new Date().toISOString() }, { merge: true });
     }
     return (await merchantRef.get()).data();
   }
@@ -110,9 +110,9 @@ export class SettlementsService {
     } catch (error) {
       const failureReason = error instanceof Error ? error.message : String(error);
       await batchRef.set({ status: 'FAILED', failureReason, updatedAt: new Date().toISOString() }, { merge: true });
-      const rollback = db.batch();
-      for (const doc of snapshot.docs) rollback.update(doc.ref, { status: 'PENDING', payoutBatchId: null, updatedAt: new Date().toISOString() });
-      await rollback.commit();
+      const hold = db.batch();
+      for (const doc of snapshot.docs) hold.update(doc.ref, { status: 'ON_HOLD', reconciliationRequired: true, failureReason: 'Payout result uncertain; reconciliation required', updatedAt: new Date().toISOString() });
+      await hold.commit();
       throw error;
     }
   }

@@ -590,7 +590,7 @@ export class PaymentsService {
       };
     }
 
-    if (await this.settlementsService.reconcileProviderEvent(webhook.event, webhook as any)) {
+    if (await this.settlementsService.reconcileProviderEvent(webhook.event, webhook.payload)) {
       await webhookRef.set({ eventId, event: webhook.event, status: 'PROCESSED', createdAt: new Date().toISOString() });
       return { success: true, processed: true };
     }

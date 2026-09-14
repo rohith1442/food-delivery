@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:file_picker/file_picker.dart';
 
 import 'onboarding_api_service.dart';
 
@@ -29,6 +30,25 @@ class _DeliveryOnboardingPageState extends State<DeliveryOnboardingPage> {
   String _vehicleType = 'BIKE';
   bool _loading = false;
   String? _error;
+  final Map<String, PlatformFile> _documents = {};
+  Future<void> _pickDocument(String type) async {
+    final result = await FilePicker.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['jpg', 'jpeg', 'png', 'pdf'],
+    );
+    if (result.isNotEmpty) {
+      setState(() => _documents[type] = result.single);
+    }
+  }
+
+  Widget _documentTile(String type, String label) => Card(
+    child: ListTile(
+      title: Text(label),
+      subtitle: Text(_documents[type]?.name ?? 'Not selected'),
+      trailing: const Icon(Icons.upload_file),
+      onTap: () => _pickDocument(type),
+    ),
+  );
   bool get _needsVehicleDocuments =>
       ['BIKE', 'SCOOTER', 'CAR'].contains(_vehicleType);
   @override
@@ -101,6 +121,9 @@ class _DeliveryOnboardingPageState extends State<DeliveryOnboardingPage> {
         },
         'upiId': _upi.text.trim(),
       });
+      for (final entry in _documents.entries) {
+        await _api.uploadDocument(entry.key, entry.value);
+      }
       await _api.submit();
       if (mounted) context.go('/approval-pending');
     } catch (_) {
@@ -159,6 +182,14 @@ class _DeliveryOnboardingPageState extends State<DeliveryOnboardingPage> {
         const SizedBox(height: 18),
         Text('Bank Details', style: Theme.of(context).textTheme.titleLarge),
         const SizedBox(height: 14),
+        _documentTile('IDENTITY_PROOF', 'Identity proof'),
+        _documentTile('PAN', 'PAN document'),
+        _documentTile('BANK_PROOF', 'Bank proof'),
+        if (_needsVehicleDocuments) ...[
+          _documentTile('DRIVING_LICENCE', 'Driving licence'),
+          _documentTile('RC', 'Vehicle RC'),
+          _documentTile('INSURANCE', 'Vehicle insurance'),
+        ],
         _field('Beneficiary name', _beneficiary),
         _field('Account number', _account, optional: true),
         _field('Confirm account number', _confirm, optional: true),

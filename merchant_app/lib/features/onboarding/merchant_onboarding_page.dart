@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:file_picker/file_picker.dart';
 
 import 'onboarding_api_service.dart';
 
@@ -27,6 +28,26 @@ class _MerchantOnboardingPageState extends State<MerchantOnboardingPage> {
   String _businessType = 'PROPRIETORSHIP', _accountType = 'CURRENT';
   bool _loading = false;
   String? _error;
+  final Map<String, PlatformFile> _documents = {};
+
+  Future<void> _pickDocument(String type) async {
+    final result = await FilePicker.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['jpg', 'jpeg', 'png', 'pdf'],
+    );
+    if (result.isNotEmpty) {
+      setState(() => _documents[type] = result.single);
+    }
+  }
+
+  Widget _documentTile(String type, String label) => Card(
+    child: ListTile(
+      title: Text(label),
+      subtitle: Text(_documents[type]?.name ?? 'Not selected'),
+      trailing: const Icon(Icons.upload_file),
+      onTap: () => _pickDocument(type),
+    ),
+  );
 
   @override
   void dispose() {
@@ -91,6 +112,9 @@ class _MerchantOnboardingPageState extends State<MerchantOnboardingPage> {
           'accountType': _accountType,
         },
       });
+      for (final entry in _documents.entries) {
+        await _api.uploadDocument(entry.key, entry.value);
+      }
       await _api.submit();
       if (mounted) context.go('/approval-pending');
     } catch (_) {
@@ -155,6 +179,11 @@ class _MerchantOnboardingPageState extends State<MerchantOnboardingPage> {
         const SizedBox(height: 28),
         Text('Bank Details', style: Theme.of(context).textTheme.titleLarge),
         const SizedBox(height: 18),
+        _documentTile('PAN', 'PAN document'),
+        _documentTile('FSSAI', 'FSSAI certificate'),
+        _documentTile('BANK_PROOF', 'Cancelled cheque / bank proof'),
+        if (_gstin.text.trim().isNotEmpty)
+          _documentTile('GST', 'GST certificate'),
         _field('Account holder name', _beneficiary),
         _field('Account number', _account, obscure: true),
         _field('Confirm account number', _confirm, obscure: true),
