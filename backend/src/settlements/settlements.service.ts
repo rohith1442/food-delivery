@@ -31,6 +31,11 @@ export class SettlementsService {
     const merchant = (await merchantRef.get()).data() as any;
     if (merchant?.status === 'PAID' || merchant?.status === 'PROCESSING') return merchant;
     if (order.paymentMethod !== 'ONLINE' || !order.providerPaymentId) return (await merchantRef.get()).data();
+    const settings = (await db.collection('settings').doc('global').get()).data() ?? {};
+    if (settings.payments?.settlement?.merchantEnabled !== true) {
+      await merchantRef.set({ status: 'ON_HOLD', failureReason: 'Merchant settlements are disabled globally', updatedAt: new Date().toISOString() }, { merge: true });
+      return (await merchantRef.get()).data();
+    }
     const store = (await db.collection('stores').doc(order.storeId).get()).data() as any;
     const settlement = store?.settlement;
     if (settlement?.settlementEnabled !== true || settlement.linkedAccountStatus !== 'ACTIVE' || !settlement.razorpayLinkedAccountId) {
@@ -63,10 +68,20 @@ export class SettlementsService {
   async getOrderSettlements(orderId: string) { const snapshot = await this.firebase.getFirestore().collection('settlements').where('orderId', '==', orderId).get(); return { success: true, settlements: snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })) }; }
   async getSettlement(orderId: string) { return this.getOrderSettlements(orderId); }
   async getAllSettlements() { const snapshot = await this.firebase.getFirestore().collection('settlements').limit(500).get(); const settlements = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })).sort((a: any, b: any) => String(b.createdAt ?? '').localeCompare(String(a.createdAt ?? ''))); return { success: true, settlements }; }
-  async retryMerchantSettlement(orderId: string) { return this.finalizeOrderSettlement(orderId); }
+  async retryMerchantSettlement(orderId: string) {
+    const ref = this.firebase.getFirestore().collection('settlements').doc(`${orderId}_MERCHANT`);
+    const snapshot = await ref.get();
+    if (!snapshot.exists) throw new BadRequestException('Merchant settlement not found');
+    const settlement = snapshot.data() as any;
+    if (settlement?.providerTransferId) throw new BadRequestException('Settlement already has a provider transfer ID');
+    if (!['FAILED', 'ON_HOLD'].includes(settlement?.status)) throw new BadRequestException('Settlement cannot be retried in its current state');
+    return this.finalizeOrderSettlement(orderId);
+  }
 
   async payoutRider(riderId: string) {
     const db = this.firebase.getFirestore();
+    const settings = (await db.collection('settings').doc('global').get()).data() ?? {};
+    if (settings.payments?.settlement?.riderPayoutEnabled !== true) throw new BadRequestException('Rider payouts are disabled');
     const user = await db.collection('users').doc(riderId).get();
     if (!user.exists) throw new BadRequestException('Rider not found');
     const onboarding = (user.data()?.deliveryOnboarding ?? {}) as any;
@@ -77,7 +92,14 @@ export class SettlementsService {
     if (amount <= 0) throw new BadRequestException('Invalid payout amount');
     const batchRef = db.collection('payout_batches').doc();
     const now = new Date().toISOString();
-    await batchRef.set({ id: batchRef.id, riderId, settlementIds: snapshot.docs.map((doc) => doc.id), amount, status: 'PROCESSING', createdAt: now, updatedAt: now });
+    await db.runTransaction(async (transaction) => {
+      const freshSnapshots = await Promise.all(snapshot.docs.map((doc) => transaction.get(doc.ref)));
+      if (freshSnapshots.some((fresh) => fresh.data()?.status !== 'PENDING')) throw new BadRequestException('Some settlements are already being paid');
+      for (const doc of snapshot.docs) {
+        transaction.update(doc.ref, { status: 'PAYOUT_RESERVED', payoutBatchId: batchRef.id, updatedAt: now });
+      }
+      transaction.set(batchRef, { id: batchRef.id, riderId, settlementIds: snapshot.docs.map((doc) => doc.id), amount, status: 'CREATED', createdAt: now, updatedAt: now });
+    });
     try {
       const payout = await this.payout.createPayout({ fundAccountId: onboarding.razorpayFundAccountId, amountInPaise: Math.round(amount * 100), payoutBatchId: batchRef.id });
       const batch = db.batch();
@@ -86,7 +108,11 @@ export class SettlementsService {
       await batchRef.set({ razorpayPayoutId: payout.id, status: 'PROCESSING', updatedAt: new Date().toISOString() }, { merge: true });
       return { success: true, payoutBatchId: batchRef.id, providerPayoutId: payout.id, amount };
     } catch (error) {
-      await batchRef.set({ status: 'FAILED', failureReason: error instanceof Error ? error.message : String(error), updatedAt: new Date().toISOString() }, { merge: true });
+      const failureReason = error instanceof Error ? error.message : String(error);
+      await batchRef.set({ status: 'FAILED', failureReason, updatedAt: new Date().toISOString() }, { merge: true });
+      const rollback = db.batch();
+      for (const doc of snapshot.docs) rollback.update(doc.ref, { status: 'PENDING', payoutBatchId: null, updatedAt: new Date().toISOString() });
+      await rollback.commit();
       throw error;
     }
   }
@@ -100,6 +126,10 @@ export class SettlementsService {
     if (!status) return false;
     const snapshot = await this.firebase.getFirestore().collection('settlements').where(field, '==', providerId).get();
     await Promise.all(snapshot.docs.map((doc) => doc.ref.update({ status, ...(status === 'PAID' ? { paidAt: new Date().toISOString() } : {}), failureReason: status === 'FAILED' ? entity.error_description ?? 'Provider operation failed' : null, updatedAt: new Date().toISOString() })));
+    if (field === 'providerPayoutId') {
+      const batches = await this.firebase.getFirestore().collection('payout_batches').where('razorpayPayoutId', '==', providerId).get();
+      await Promise.all(batches.docs.map((doc) => doc.ref.update({ status, ...(status === 'PAID' ? { paidAt: new Date().toISOString() } : {}), failureReason: status === 'FAILED' ? entity.error_description ?? 'Provider payout failed' : null, updatedAt: new Date().toISOString() })));
+    }
     return snapshot.size > 0;
   }
 }

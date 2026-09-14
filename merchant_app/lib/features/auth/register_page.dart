@@ -88,7 +88,7 @@ class _MerchantRegisterPageState extends State<MerchantRegisterPage> {
 
       if (!mounted) return;
 
-      context.go('/approval-pending');
+      context.go('/onboarding');
     } on FirebaseAuthException catch (error) {
       if (!mounted) return;
 

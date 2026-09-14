@@ -65,7 +65,7 @@ class _DeliveryRegisterPageState extends State<DeliveryRegisterPage> {
 
       if (!mounted) return;
 
-      context.go('/approval-pending');
+      context.go('/onboarding');
     } on FirebaseAuthException catch (error) {
       _showError(error.message ?? 'Registration failed');
     } on DioException catch (error) {

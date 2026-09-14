@@ -99,6 +99,9 @@ export interface OrderDocument {
     grossAmount: number;
     merchantCommission: number;
     merchantPayable: number;
+    riderDistanceKm?: number;
+    riderBaseEarning?: number;
+    riderDistanceEarning?: number;
     riderEarning: number;
     platformRevenue: number;
   };
@@ -188,6 +191,14 @@ export class OrdersService {
     private readonly configService: ConfigService,
     private readonly settlementsService: SettlementsService,
   ) {}
+
+  private distanceKm(lat1: number, lon1: number, lat2: number, lon2: number) {
+    const radians = (value: number) => (value * Math.PI) / 180;
+    const dLat = radians(lat2 - lat1);
+    const dLon = radians(lon2 - lon1);
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos(radians(lat1)) * Math.cos(radians(lat2)) * Math.sin(dLon / 2) ** 2;
+    return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  }
 
   // --------------------------------------------------
   // CUSTOMER
@@ -444,13 +455,20 @@ export class OrdersService {
           : Number((subtotal * Number(commissionSettings.value ?? 10) / 100).toFixed(2));
         const commissionAmount = Math.min(subtotal, rawCommission);
         const riderSettings = settings.payments?.riderEarning ?? { baseAmount: 30, perKmAmount: 5, minimumAmount: 30 };
-        const riderEarning = Math.max(Number(riderSettings.minimumAmount ?? 30), Number(riderSettings.baseAmount ?? 30));
+        if (typeof store.latitude !== 'number' || typeof store.longitude !== 'number' || typeof deliveryAddress.latitude !== 'number' || typeof deliveryAddress.longitude !== 'number') throw new BadRequestException('Store and delivery coordinates are required');
+        const distance = this.distanceKm(store.latitude, store.longitude, deliveryAddress.latitude, deliveryAddress.longitude);
+        const riderBaseEarning = Number(riderSettings.baseAmount ?? 30);
+        const riderDistanceEarning = distance * Number(riderSettings.perKmAmount ?? 0);
+        const riderEarning = Number(Math.max(Number(riderSettings.minimumAmount ?? 30), riderBaseEarning + riderDistanceEarning).toFixed(2));
         const financials = {
           itemAmount: subtotal,
           customerDeliveryFee: deliveryFee,
           grossAmount: total,
           merchantCommission: commissionAmount,
           merchantPayable: Math.max(0, subtotal - commissionAmount),
+          riderDistanceKm: Number(distance.toFixed(2)),
+          riderBaseEarning,
+          riderDistanceEarning: Number(riderDistanceEarning.toFixed(2)),
           riderEarning,
           platformRevenue: commissionAmount + deliveryFee - riderEarning,
         };

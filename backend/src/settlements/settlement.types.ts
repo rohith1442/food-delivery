@@ -1,3 +1,3 @@
 export type SettlementPartyType = 'MERCHANT' | 'DELIVERY_PARTNER' | 'PLATFORM';
-export type SettlementStatus = 'PENDING' | 'ON_HOLD' | 'PROCESSING' | 'PAID' | 'FAILED' | 'REVERSED' | 'CANCELLED';
+export type SettlementStatus = 'PENDING' | 'ON_HOLD' | 'PAYOUT_RESERVED' | 'PROCESSING' | 'PAID' | 'FAILED' | 'REVERSED' | 'CANCELLED';
 export interface SettlementTransaction { id: string; orderId: string; partyType: SettlementPartyType; partyId: string; storeId?: string; grossAmount: number; commissionAmount: number; deliveryEarning: number; deductions: number; taxAmount: number; netAmount: number; provider: 'RAZORPAY_ROUTE' | 'RAZORPAY_X' | 'INTERNAL'; providerTransferId?: string | null; providerPayoutId?: string | null; status: SettlementStatus; failureReason?: string | null; createdAt: string; updatedAt: string; paidAt?: string | null; }

@@ -7,6 +7,7 @@ import '../features/dashboard/dashboard_page.dart';
 import '../features/notifications/notifications_page.dart';
 import '../features/earnings/earnings_page.dart';
 import '../features/profile/profile_page.dart';
+import '../features/onboarding/delivery_onboarding_page.dart';
 
 class AppRouter {
   AppRouter._();
@@ -25,6 +26,10 @@ class AppRouter {
       GoRoute(
         path: '/approval-pending',
         builder: (context, state) => const DeliveryApprovalPendingPage(),
+      ),
+      GoRoute(
+        path: '/onboarding',
+        builder: (context, state) => const DeliveryOnboardingPage(),
       ),
       GoRoute(
         path: '/dashboard',

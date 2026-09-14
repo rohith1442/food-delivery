@@ -4,6 +4,8 @@ import '../features/auth/approval_pending_page.dart';
 import '../features/auth/login_page.dart';
 import '../features/auth/register_page.dart';
 import '../features/dashboard/dashboard_page.dart';
+import '../features/earnings/earnings_page.dart';
+import '../features/onboarding/merchant_onboarding_page.dart';
 
 class AppRouter {
   AppRouter._();
@@ -22,6 +24,14 @@ class AppRouter {
       GoRoute(
         path: '/approval-pending',
         builder: (context, state) => const ApprovalPendingPage(),
+      ),
+      GoRoute(
+        path: '/onboarding',
+        builder: (context, state) => const MerchantOnboardingPage(),
+      ),
+      GoRoute(
+        path: '/earnings',
+        builder: (context, state) => const MerchantEarningsPage(),
       ),
       GoRoute(
         path: '/dashboard',
