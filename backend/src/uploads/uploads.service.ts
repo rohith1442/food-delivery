@@ -36,14 +36,18 @@ export class UploadsService {
 
   async uploadKycDocument(uid: string, role: 'merchant' | 'delivery', documentType: string, file: Express.Multer.File) {
     if (!file) throw new BadRequestException('KYC document is required');
+    const merchantTypes = new Set(['PAN', 'GST', 'FSSAI', 'BANK_PROOF', 'BUSINESS_PROOF', 'TRADE_LICENSE']);
+    const deliveryTypes = new Set(['PROFILE_PHOTO', 'IDENTITY_PROOF', 'PAN', 'DRIVING_LICENCE', 'RC', 'INSURANCE', 'BANK_PROOF']);
+    const allowedTypes = role === 'merchant' ? merchantTypes : deliveryTypes;
+    if (!allowedTypes.has(documentType)) throw new BadRequestException('Unsupported KYC document type');
     const allowed = ['application/pdf', 'image/jpeg', 'image/png'];
     if (!allowed.includes(file.mimetype)) throw new BadRequestException('KYC documents must be PDF, JPG or PNG');
-    if (file.size > 10 * 1024 * 1024) throw new BadRequestException('KYC document must be 10MB or smaller');
+    if (file.size > 5 * 1024 * 1024) throw new BadRequestException('KYC document must be 5MB or smaller');
     const extension = file.mimetype === 'application/pdf' ? 'pdf' : file.mimetype === 'image/png' ? 'png' : 'jpg';
     const objectKey = `kyc/${role}/${uid}/${documentType}/${randomUUID()}.${extension}`;
     const storageFile = this.firebaseService.getStorage().bucket().file(objectKey);
     await storageFile.save(file.buffer, { metadata: { contentType: file.mimetype, metadata: { privateKyc: 'true', ownerUid: uid } }, resumable: false });
-    return { success: true, objectKey, documentType };
+    return { success: true, type: documentType, objectKey, originalName: file.originalname, mimeType: file.mimetype, status: 'PENDING' };
   }
 
   async getKycSignedUrl(objectKey: string) {

@@ -37,6 +37,11 @@ interface Settings {
   supportPhone: string;
   deliveryPromiseText: string;
   content: ContentSettings;
+  payments: {
+    merchantCommission: { type: "PERCENTAGE" | "FIXED"; value: number };
+    riderEarning: { baseAmount: number; perKmAmount: number; minimumAmount: number };
+    settlement: { merchantEnabled: boolean; riderPayoutEnabled: boolean; riderPayoutFrequency: "DAILY" | "WEEKLY" | "MANUAL" };
+  };
 
   home: {
     enabledModules: string[];
@@ -97,6 +102,11 @@ const defaultSettings: Settings = {
   supportPhone: "",
   deliveryPromiseText: "20-Min Delivery",
   content: defaultContent,
+  payments: {
+    merchantCommission: { type: "PERCENTAGE", value: 10 },
+    riderEarning: { baseAmount: 30, perKmAmount: 5, minimumAmount: 30 },
+    settlement: { merchantEnabled: false, riderPayoutEnabled: false, riderPayoutFrequency: "WEEKLY" },
+  },
 
   home: {
     enabledModules: ["food", "grocery"],
@@ -170,6 +180,13 @@ export default function SettingsPage() {
           about: { ...defaultContent.about, ...(response.data.content?.about ?? {}) },
           support: { ...defaultContent.support, ...(response.data.content?.support ?? {}) },
           permissions: { ...defaultContent.permissions, ...(response.data.content?.permissions ?? {}) },
+        },
+        payments: {
+          ...defaultSettings.payments,
+          ...(response.data.payments ?? {}),
+          merchantCommission: { ...defaultSettings.payments.merchantCommission, ...(response.data.payments?.merchantCommission ?? {}) },
+          riderEarning: { ...defaultSettings.payments.riderEarning, ...(response.data.payments?.riderEarning ?? {}) },
+          settlement: { ...defaultSettings.payments.settlement, ...(response.data.payments?.settlement ?? {}) },
         },
       });
     } catch (error) {
@@ -339,6 +356,7 @@ export default function SettingsPage() {
           },
         },
         content: settings.content,
+        payments: settings.payments,
       };
 
       await api.patch(
@@ -910,6 +928,17 @@ export default function SettingsPage() {
           )}
 
           <div className="flex justify-end">
+            <section className="space-y-5 rounded-xl bg-white p-6 shadow-sm">
+              <h2 className="text-xl font-bold">Payments & Settlements</h2>
+              <label className="block"><span className="text-sm font-medium">Merchant Commission Type</span><select className="mt-1 w-full rounded-lg border px-3 py-2" value={settings.payments.merchantCommission.type} onChange={(event) => setSettings((current) => ({ ...current, payments: { ...current.payments, merchantCommission: { ...current.payments.merchantCommission, type: event.target.value as "PERCENTAGE" | "FIXED" } } }))}><option value="PERCENTAGE">Percentage</option><option value="FIXED">Fixed</option></select></label>
+              <NumberField label="Merchant Commission" value={settings.payments.merchantCommission.value} onChange={(value) => setSettings((current) => ({ ...current, payments: { ...current.payments, merchantCommission: { ...current.payments.merchantCommission, value } } }))} />
+              <NumberField label="Rider Base Earning" value={settings.payments.riderEarning.baseAmount} onChange={(value) => setSettings((current) => ({ ...current, payments: { ...current.payments, riderEarning: { ...current.payments.riderEarning, baseAmount: value } } }))} />
+              <NumberField label="Rider Per KM" value={settings.payments.riderEarning.perKmAmount} onChange={(value) => setSettings((current) => ({ ...current, payments: { ...current.payments, riderEarning: { ...current.payments.riderEarning, perKmAmount: value } } }))} />
+              <NumberField label="Minimum Rider Earning" value={settings.payments.riderEarning.minimumAmount} onChange={(value) => setSettings((current) => ({ ...current, payments: { ...current.payments, riderEarning: { ...current.payments.riderEarning, minimumAmount: value } } }))} />
+              <label className="flex items-center gap-2"><input type="checkbox" checked={settings.payments.settlement.merchantEnabled} onChange={(event) => setSettings((current) => ({ ...current, payments: { ...current.payments, settlement: { ...current.payments.settlement, merchantEnabled: event.target.checked } } }))} />Enable Merchant Settlements</label>
+              <label className="flex items-center gap-2"><input type="checkbox" checked={settings.payments.settlement.riderPayoutEnabled} onChange={(event) => setSettings((current) => ({ ...current, payments: { ...current.payments, settlement: { ...current.payments.settlement, riderPayoutEnabled: event.target.checked } } }))} />Enable Rider Payouts</label>
+            </section>
+
             <button
               type="submit"
               disabled={saving}

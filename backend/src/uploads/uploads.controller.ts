@@ -91,14 +91,14 @@ export class UploadsController {
   @Post('merchant/onboarding/documents/upload')
   @UseGuards(AuthGuard, RolesGuard)
   @Roles('MERCHANT')
-  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 10 * 1024 * 1024 } }))
-  uploadMerchantKyc(@Req() request: any, @UploadedFile() file: Express.Multer.File) { return this.uploadsService.uploadKycDocument(request.user.uid, 'merchant', request.body?.documentType ?? 'other', file); }
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 5 * 1024 * 1024 } }))
+  uploadMerchantKyc(@Req() request: any, @UploadedFile() file: Express.Multer.File) { return this.uploadsService.uploadKycDocument(request.user.uid, 'merchant', request.body?.type ?? request.body?.documentType ?? '', file); }
 
   @Post('delivery/onboarding/documents/upload')
   @UseGuards(AuthGuard, RolesGuard)
   @Roles('DELIVERY')
-  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 10 * 1024 * 1024 } }))
-  uploadDeliveryKyc(@Req() request: any, @UploadedFile() file: Express.Multer.File) { return this.uploadsService.uploadKycDocument(request.user.uid, 'delivery', request.body?.documentType ?? 'other', file); }
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 5 * 1024 * 1024 } }))
+  uploadDeliveryKyc(@Req() request: any, @UploadedFile() file: Express.Multer.File) { return this.uploadsService.uploadKycDocument(request.user.uid, 'delivery', request.body?.type ?? request.body?.documentType ?? '', file); }
 
   @Get('admin/kyc-document/:encodedKey')
   @UseGuards(AuthGuard, RolesGuard)

@@ -406,6 +406,23 @@ export class AdminService {
       throw new NotFoundException('Store not found');
     }
 
+    if (isActive) {
+      const store = snapshot.data() as { merchantId?: string };
+      const merchantSnapshot = store.merchantId
+        ? await db.collection('users').doc(store.merchantId).get()
+        : null;
+      const onboarding = merchantSnapshot?.data()?.merchantOnboarding;
+      if (
+        onboarding?.approvalStatus !== 'APPROVED' ||
+        onboarding?.kycStatus !== 'VERIFIED' ||
+        onboarding?.settlementStatus !== 'ACTIVE'
+      ) {
+        throw new BadRequestException(
+          'Merchant onboarding and settlement must be active before enabling the store',
+        );
+      }
+    }
+
     const updatedAt = new Date().toISOString();
 
     await storeRef.update({
@@ -520,6 +537,19 @@ export class AdminService {
       throw new BadRequestException(
         'Admin accounts cannot be changed using this endpoint',
       );
+    }
+
+    if (isActive && role === 'DELIVERY') {
+      const onboarding = (user as any).deliveryOnboarding;
+      if (
+        onboarding?.approvalStatus !== 'APPROVED' ||
+        onboarding?.kycStatus !== 'VERIFIED' ||
+        onboarding?.payoutStatus !== 'ACTIVE'
+      ) {
+        throw new BadRequestException(
+          'Delivery onboarding and payout setup must be active before enabling the rider',
+        );
+      }
     }
 
     const currentStatus = user.status?.trim().toUpperCase();

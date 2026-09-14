@@ -115,7 +115,9 @@ export class StoresService {
       imageUrl: null,
       ratingAverage: 0,
       ratingCount: 0,
-      isActive: true,
+      // A store becomes discoverable only after merchant KYC and settlement
+      // activation have both completed.
+      isActive: false,
       isOpen: true,
       createdAt: now,
       updatedAt: now,
