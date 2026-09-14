@@ -31,7 +31,8 @@ class AppRouter {
         return '/home';
       }
 
-      if (!loggedIn && location == '/home') {
+      const protectedRoutes = {'/home', '/location'};
+      if (!loggedIn && protectedRoutes.contains(location)) {
         return '/login';
       }
 

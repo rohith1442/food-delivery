@@ -96,6 +96,7 @@ interface GlobalSettingsDocument {
   currencySymbol?: string;
   supportPhone?: string;
   deliveryPromiseText?: string;
+  content?: Record<string, any>;
 
   home?: {
     enabledModules?: string[];
@@ -1031,6 +1032,7 @@ export class AdminService {
         currencySymbol: '₹',
         supportPhone: '',
         deliveryPromiseText: '20-Min Delivery',
+        content: this.getDefaultContent(),
       };
     }
 
@@ -1240,6 +1242,11 @@ export class AdminService {
       };
     }
 
+    if (data.content !== undefined) {
+      const current = (await settingsRef.get()).data()?.content ?? {};
+      updates.content = this.mergeContent(current, data.content);
+    }
+
     updates.updatedAt = new Date().toISOString();
 
     await settingsRef.set(updates, {
@@ -1249,6 +1256,23 @@ export class AdminService {
     const updatedSnapshot = await settingsRef.get();
 
     return updatedSnapshot.data();
+  }
+  private getDefaultContent() {
+    return {
+      terms: { title: 'Terms & Conditions', content: '', version: '1.0', isEnabled: true },
+      privacy: { title: 'Privacy Policy', content: '', version: '1.0', isEnabled: true },
+      refundPolicy: { title: 'Refund & Cancellation Policy', content: '', version: '1.0', isEnabled: true },
+      deliveryPolicy: { title: 'Delivery Policy', content: '', version: '1.0', isEnabled: true },
+      about: { title: 'About Us', content: '', isEnabled: true },
+      support: { title: 'Contact Support', content: '', phone: '', email: '', whatsapp: '', workingHours: '', isEnabled: true },
+      permissions: { title: 'App Permissions', location: 'Location is used to determine service availability and delivery address.', notifications: 'Notifications are used to provide order and delivery updates.', camera: 'Camera access is used only when a feature requires taking a photo.', photos: 'Photo access is used only when a feature requires selecting an image.', isEnabled: true },
+    };
+  }
+  private mergeContent(current: Record<string, any>, incoming: Record<string, any>) {
+    const defaults = this.getDefaultContent() as Record<string, any>;
+    const merged: Record<string, any> = { ...defaults, ...current, ...incoming };
+    for (const key of Object.keys(defaults)) merged[key] = { ...defaults[key], ...(current[key] ?? {}), ...(incoming[key] ?? {}) };
+    return merged;
   }
   private validateVersion(value: string, field: string) {
     if (typeof value !== 'string') {

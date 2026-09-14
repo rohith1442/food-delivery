@@ -2,6 +2,11 @@ import 'package:flutter/material.dart';
 
 import '../reviews/review_dialog.dart';
 import '../reviews/reviews_api_service.dart';
+import '../../core/config/app_branding.dart';
+import '../restaurants/menu_page.dart';
+import 'order_tracking_page.dart';
+import 'orders_api_service.dart';
+import 'widgets/order_lifecycle.dart';
 
 class OrderDetailsPage extends StatefulWidget {
   const OrderDetailsPage({super.key, required this.order});
@@ -14,19 +19,47 @@ class OrderDetailsPage extends StatefulWidget {
 
 class _OrderDetailsPageState extends State<OrderDetailsPage> {
   final ReviewsApiService _reviewsApiService = ReviewsApiService();
+  final OrdersApiService _ordersApiService = OrdersApiService();
 
   bool _submittingReview = false;
   bool _checkingReview = false;
   Map<String, dynamic>? _review;
+  late Map<String, dynamic> _order;
+  bool _refreshingOrder = false;
 
-  Map<String, dynamic> get order => widget.order;
+  Map<String, dynamic> get order => _order;
 
   @override
   void initState() {
     super.initState();
+    _order = Map<String, dynamic>.from(widget.order);
 
     if (order['status']?.toString() == 'DELIVERED') {
       _loadReview();
+    }
+  }
+
+  Future<void> _refreshOrder() async {
+    final orderId = order['id']?.toString() ?? '';
+    if (orderId.isEmpty || _refreshingOrder) return;
+    setState(() => _refreshingOrder = true);
+    try {
+      final response = await _ordersApiService.getOrder(orderId);
+      final raw = response['order'];
+      if (!mounted) return;
+      setState(() {
+        _order = raw is Map ? Map<String, dynamic>.from(raw) : response;
+        _refreshingOrder = false;
+      });
+      if (_order['status']?.toString() == 'DELIVERED' && _review == null) {
+        await _loadReview();
+      }
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _refreshingOrder = false);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Unable to refresh order')));
     }
   }
 
@@ -222,8 +255,6 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
 
     final isDelivered = rawStatus == 'DELIVERED';
 
-    final isOnTheWay = rawStatus == 'ON_THE_WAY';
-
     final items = _getItems();
 
     final deliveryAddress = _getDeliveryAddress();
@@ -243,9 +274,24 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
     final total = order['total']?.toString() ?? '0';
 
     final paymentMethod = order['paymentMethod']?.toString() ?? '-';
+    final currency = AppBrandingController.instance.branding.currencySymbol;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Order Details')),
+      appBar: AppBar(
+        title: const Text('Order Details'),
+        actions: [
+          IconButton(
+            onPressed: _refreshingOrder ? null : _refreshOrder,
+            icon: _refreshingOrder
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.refresh),
+          ),
+        ],
+      ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -293,6 +339,21 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
                   ],
                 ],
               ),
+            ),
+          ),
+
+          const SizedBox(height: 20),
+
+          Text(
+            'Order Progress',
+            style: Theme.of(context).textTheme.titleLarge
+                ?.copyWith(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 10),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: OrderLifecycle(status: rawStatus),
             ),
           ),
 
@@ -385,11 +446,18 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
               padding: const EdgeInsets.all(16),
               child: Column(
                 children: [
-                  _SummaryRow(label: 'Subtotal', value: '₹$subtotal'),
+                  _SummaryRow(label: 'Subtotal', value: '$currency$subtotal'),
                   const SizedBox(height: 8),
-                  _SummaryRow(label: 'Delivery fee', value: '₹$deliveryFee'),
+                  _SummaryRow(
+                    label: 'Delivery fee',
+                    value: '$currency$deliveryFee',
+                  ),
                   const Divider(height: 24),
-                  _SummaryRow(label: 'Total', value: '₹$total', bold: true),
+                  _SummaryRow(
+                    label: 'Total',
+                    value: '$currency$total',
+                    bold: true,
+                  ),
                   const SizedBox(height: 16),
                   Row(
                     children: [
@@ -405,19 +473,19 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
 
           const SizedBox(height: 24),
 
-          if (isOnTheWay)
+          if (!isCancelled && !isDelivered)
             SizedBox(
               width: double.infinity,
               height: 52,
               child: FilledButton.icon(
                 onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Live tracking will be connected later'),
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => OrderTrackingPage(orderId: orderId),
                     ),
                   );
                 },
-                icon: const Icon(Icons.location_on),
+                icon: const Icon(Icons.location_searching),
                 label: const Text('Track Order'),
               ),
             ),
@@ -445,9 +513,22 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
               height: 52,
               child: OutlinedButton.icon(
                 onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Reorder will be implemented later'),
+                  final storeId = order['storeId']?.toString() ?? '';
+                  if (storeId.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Store is unavailable for reorder'),
+                      ),
+                    );
+                    return;
+                  }
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => MenuPage(
+                        storeId: storeId,
+                        storeName: storeName,
+                        storeAddress: storeAddress,
+                      ),
                     ),
                   );
                 },
@@ -518,11 +599,15 @@ class _OrderItemRow extends StatelessWidget {
     final quantity = item['quantity']?.toString() ?? '1';
 
     final price = item['price']?.toString() ?? '0';
+    final currency = AppBrandingController.instance.branding.currencySymbol;
 
     return Row(
       children: [
         Expanded(child: Text('$name × $quantity')),
-        Text('₹$price', style: const TextStyle(fontWeight: FontWeight.w600)),
+        Text(
+          '$currency$price',
+          style: const TextStyle(fontWeight: FontWeight.w600),
+        ),
       ],
     );
   }

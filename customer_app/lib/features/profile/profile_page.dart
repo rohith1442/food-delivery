@@ -4,6 +4,9 @@ import 'package:flutter/material.dart';
 import '../auth/auth_api_service.dart';
 import '../addresses/addresses_page.dart';
 import '../orders/orders_page.dart';
+import '../notifications/notifications_page.dart';
+import '../content/content_page.dart';
+import '../content/support_page.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -183,6 +186,15 @@ class _ProfilePageState extends State<ProfilePage> {
               },
             ),
             _ProfileTile(
+              icon: Icons.notifications_outlined,
+              title: 'Notifications',
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const CustomerNotificationsPage(),
+                ),
+              ),
+            ),
+            _ProfileTile(
               icon: Icons.receipt_long_outlined,
               title: 'My Orders',
               onTap: () {
@@ -190,6 +202,84 @@ class _ProfilePageState extends State<ProfilePage> {
                   context,
                 ).push(MaterialPageRoute(builder: (_) => const OrdersPage()));
               },
+            ),
+            _ProfileTile(
+              icon: Icons.support_agent_outlined,
+              title: 'Help & Support',
+              onTap: () => Navigator.of(context)
+                  .push(MaterialPageRoute(builder: (_) => const SupportPage())),
+            ),
+            _ProfileTile(
+              icon: Icons.description_outlined,
+              title: 'Terms & Conditions',
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const ContentPage(
+                    type: 'terms',
+                    fallbackTitle: 'Terms & Conditions',
+                  ),
+                ),
+              ),
+            ),
+            _ProfileTile(
+              icon: Icons.privacy_tip_outlined,
+              title: 'Privacy Policy',
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const ContentPage(
+                    type: 'privacy',
+                    fallbackTitle: 'Privacy Policy',
+                  ),
+                ),
+              ),
+            ),
+            _ProfileTile(
+              icon: Icons.currency_exchange_outlined,
+              title: 'Refund & Cancellation Policy',
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const ContentPage(
+                    type: 'refund-policy',
+                    fallbackTitle: 'Refund & Cancellation Policy',
+                  ),
+                ),
+              ),
+            ),
+            _ProfileTile(
+              icon: Icons.local_shipping_outlined,
+              title: 'Delivery Policy',
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const ContentPage(
+                    type: 'delivery-policy',
+                    fallbackTitle: 'Delivery Policy',
+                  ),
+                ),
+              ),
+            ),
+            _ProfileTile(
+              icon: Icons.info_outline,
+              title: 'About Us',
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const ContentPage(
+                    type: 'about',
+                    fallbackTitle: 'About Us',
+                  ),
+                ),
+              ),
+            ),
+            _ProfileTile(
+              icon: Icons.admin_panel_settings_outlined,
+              title: 'App Permissions',
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const ContentPage(
+                    type: 'permissions',
+                    fallbackTitle: 'App Permissions',
+                  ),
+                ),
+              ),
             ),
             if (email.isNotEmpty)
               _ProfileTile(

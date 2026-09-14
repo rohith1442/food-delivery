@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import 'auth_api_service.dart';
 import '../../services/notification_service.dart';
+import '../content/content_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -22,12 +25,51 @@ class _LoginPageState extends State<LoginPage> {
   String? _verificationId;
   bool _otpSent = false;
   bool _loading = false;
+  Timer? _resendTimer;
+  int _resendSeconds = 0;
 
   @override
   void dispose() {
+    _resendTimer?.cancel();
     _phoneController.dispose();
     _otpController.dispose();
     super.dispose();
+  }
+
+  void _startResendTimer() {
+    _resendTimer?.cancel();
+    setState(() => _resendSeconds = 30);
+    _resendTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      if (_resendSeconds <= 1) {
+        timer.cancel();
+        setState(() => _resendSeconds = 0);
+        return;
+      }
+      setState(() => _resendSeconds--);
+    });
+  }
+
+  String _firebasePhoneError(FirebaseAuthException error) {
+    switch (error.code) {
+      case 'invalid-phone-number':
+        return 'Enter a valid mobile number';
+      case 'too-many-requests':
+        return 'Too many OTP requests. Please try again later.';
+      case 'invalid-verification-code':
+        return 'Incorrect OTP. Please try again.';
+      case 'session-expired':
+        return 'OTP expired. Request a new OTP.';
+      case 'quota-exceeded':
+        return 'OTP service is temporarily unavailable.';
+      case 'network-request-failed':
+        return 'Check your internet connection and try again.';
+      default:
+        return error.message ?? 'Something went wrong. Please try again.';
+    }
   }
 
   Future<void> _sendOtp() async {
@@ -50,7 +92,7 @@ class _LoginPageState extends State<LoginPage> {
 
           await _authApiService.ensureCustomerProfile();
 
-          await NotificationService().initialize();
+          NotificationService().initialize();
 
           if (!mounted) return;
 
@@ -59,7 +101,7 @@ class _LoginPageState extends State<LoginPage> {
         verificationFailed: (FirebaseAuthException error) {
           if (!mounted) return;
 
-          _showError(error.message ?? 'Failed to send OTP');
+          _showError(_firebasePhoneError(error));
         },
         codeSent: (String verificationId, int? resendToken) {
           if (!mounted) return;
@@ -69,6 +111,7 @@ class _LoginPageState extends State<LoginPage> {
             _otpSent = true;
             _loading = false;
           });
+          _startResendTimer();
         },
         codeAutoRetrievalTimeout: (String verificationId) {
           _verificationId = verificationId;
@@ -114,7 +157,7 @@ class _LoginPageState extends State<LoginPage> {
 
       await _authApiService.ensureCustomerProfile();
 
-      await NotificationService().initialize();
+      NotificationService().initialize();
 
       if (!mounted) return;
 
@@ -122,7 +165,7 @@ class _LoginPageState extends State<LoginPage> {
     } on FirebaseAuthException catch (error) {
       if (!mounted) return;
 
-      _showError(error.message ?? 'Invalid OTP');
+      _showError(_firebasePhoneError(error));
     } catch (_) {
       if (!mounted) return;
 
@@ -225,6 +268,16 @@ class _LoginPageState extends State<LoginPage> {
               const SizedBox(height: 12),
               Center(
                 child: TextButton(
+                  onPressed: _loading || _resendSeconds > 0 ? null : _sendOtp,
+                  child: Text(
+                    _resendSeconds > 0
+                        ? 'Resend OTP in $_resendSeconds s'
+                        : 'Resend OTP',
+                  ),
+                ),
+              ),
+              Center(
+                child: TextButton(
                   onPressed: _loading
                       ? null
                       : () {
@@ -238,6 +291,50 @@ class _LoginPageState extends State<LoginPage> {
                 ),
               ),
             ],
+            Padding(
+              padding: const EdgeInsets.only(top: 24),
+              child: Wrap(
+                alignment: WrapAlignment.center,
+                children: [
+                  const Text('By continuing, you agree to our '),
+                  GestureDetector(
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const ContentPage(
+                          type: 'terms',
+                          fallbackTitle: 'Terms & Conditions',
+                        ),
+                      ),
+                    ),
+                    child: Text(
+                      'Terms & Conditions',
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  const Text(' and '),
+                  GestureDetector(
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const ContentPage(
+                          type: 'privacy',
+                          fallbackTitle: 'Privacy Policy',
+                        ),
+                      ),
+                    ),
+                    child: Text(
+                      'Privacy Policy',
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
       ),

@@ -36,6 +36,7 @@ interface Settings {
   currencySymbol: string;
   supportPhone: string;
   deliveryPromiseText: string;
+  content: ContentSettings;
 
   home: {
     enabledModules: string[];
@@ -56,6 +57,18 @@ interface Settings {
 
   updatedAt?: string;
 }
+
+interface LegalContent { title: string; content: string; version: string; isEnabled: boolean; }
+interface ContentSettings {
+  terms: LegalContent; privacy: LegalContent; refundPolicy: LegalContent; deliveryPolicy: LegalContent;
+  about: { title: string; content: string; isEnabled: boolean };
+  support: { title: string; content: string; phone: string; email: string; whatsapp: string; workingHours: string; isEnabled: boolean };
+  permissions: { title: string; location: string; notifications: string; camera: string; photos: string; isEnabled: boolean };
+}
+
+const defaultContent: ContentSettings = {
+  terms: { title: "Terms & Conditions", content: "", version: "1.0", isEnabled: true }, privacy: { title: "Privacy Policy", content: "", version: "1.0", isEnabled: true }, refundPolicy: { title: "Refund & Cancellation Policy", content: "", version: "1.0", isEnabled: true }, deliveryPolicy: { title: "Delivery Policy", content: "", version: "1.0", isEnabled: true }, about: { title: "About Us", content: "", isEnabled: true }, support: { title: "Contact Support", content: "", phone: "", email: "", whatsapp: "", workingHours: "", isEnabled: true }, permissions: { title: "App Permissions", location: "Location is used to determine service availability and delivery address.", notifications: "Notifications are used for order and delivery updates.", camera: "", photos: "", isEnabled: true },
+};
 
 const defaultSettings: Settings = {
   deliveryFee: 40,
@@ -83,6 +96,7 @@ const defaultSettings: Settings = {
   currencySymbol: "₹",
   supportPhone: "",
   deliveryPromiseText: "20-Min Delivery",
+  content: defaultContent,
 
   home: {
     enabledModules: ["food", "grocery"],
@@ -145,6 +159,17 @@ export default function SettingsPage() {
           enabledModules:
             response.data.home?.enabledModules ??
             defaultSettings.home.enabledModules,
+        },
+        content: {
+          ...defaultContent,
+          ...(response.data.content ?? {}),
+          terms: { ...defaultContent.terms, ...(response.data.content?.terms ?? {}) },
+          privacy: { ...defaultContent.privacy, ...(response.data.content?.privacy ?? {}) },
+          refundPolicy: { ...defaultContent.refundPolicy, ...(response.data.content?.refundPolicy ?? {}) },
+          deliveryPolicy: { ...defaultContent.deliveryPolicy, ...(response.data.content?.deliveryPolicy ?? {}) },
+          about: { ...defaultContent.about, ...(response.data.content?.about ?? {}) },
+          support: { ...defaultContent.support, ...(response.data.content?.support ?? {}) },
+          permissions: { ...defaultContent.permissions, ...(response.data.content?.permissions ?? {}) },
         },
       });
     } catch (error) {
@@ -245,6 +270,8 @@ export default function SettingsPage() {
     }));
   };
 
+  const updateContent = (section: keyof ContentSettings, field: string, value: string | boolean) => setSettings((current) => ({ ...current, content: { ...current.content, [section]: { ...current.content[section], [field]: value } } }));
+
   const handleSubmit = async (
     event: FormEvent,
   ) => {
@@ -311,6 +338,7 @@ export default function SettingsPage() {
             actionValue: settings.home.promoBanner.actionValue.trim(),
           },
         },
+        content: settings.content,
       };
 
       await api.patch(
@@ -569,6 +597,16 @@ export default function SettingsPage() {
                 ))}
               </div>
             </div>
+          </section>
+
+          <section className="space-y-6 rounded-xl bg-white p-6 shadow-sm">
+            <h2 className="text-2xl font-bold">Legal & Customer Content</h2>
+            <LegalEditor title="Terms & Conditions" value={settings.content.terms} onChange={(field, value) => updateContent("terms", field, value)} />
+            <LegalEditor title="Privacy Policy" value={settings.content.privacy} onChange={(field, value) => updateContent("privacy", field, value)} />
+            <LegalEditor title="Refund & Cancellation Policy" value={settings.content.refundPolicy} onChange={(field, value) => updateContent("refundPolicy", field, value)} />
+            <LegalEditor title="Delivery Policy" value={settings.content.deliveryPolicy} onChange={(field, value) => updateContent("deliveryPolicy", field, value)} />
+            <div className="space-y-4 rounded-xl border p-5"><h3 className="text-lg font-semibold">About Us</h3><TextField label="Title" value={settings.content.about.title} onChange={(value) => updateContent("about", "title", value)} /><textarea className="min-h-[180px] w-full rounded-lg border px-3 py-2" value={settings.content.about.content} onChange={(event) => updateContent("about", "content", event.target.value)} /></div>
+            <div className="space-y-4 rounded-xl border p-5"><h3 className="text-lg font-semibold">Support</h3>{([['phone', 'Support phone'], ['email', 'Support email'], ['whatsapp', 'WhatsApp'], ['workingHours', 'Working hours']] as const).map(([field, label]) => <TextField key={field} label={label} value={settings.content.support[field]} onChange={(value) => updateContent("support", field, value)} />)}<textarea className="min-h-[140px] w-full rounded-lg border px-3 py-2" value={settings.content.support.content} placeholder="Support instructions" onChange={(event) => updateContent("support", "content", event.target.value)} /></div>
           </section>
 
           <section className="rounded-xl bg-white p-6 shadow-sm">
@@ -886,6 +924,10 @@ export default function SettingsPage() {
       </div>
     </main>
   );
+}
+
+function LegalEditor({ title, value, onChange }: { title: string; value: LegalContent; onChange: (field: keyof LegalContent, value: string | boolean) => void }) {
+  return <div className="space-y-4 rounded-xl border p-5"><div className="flex items-center justify-between"><h3 className="text-lg font-semibold">{title}</h3><label className="flex items-center gap-2"><input type="checkbox" checked={value.isEnabled} onChange={(event) => onChange("isEnabled", event.target.checked)} /> Enabled</label></div><TextField label="Title" value={value.title} onChange={(next) => onChange("title", next)} /><TextField label="Version" value={value.version} onChange={(next) => onChange("version", next)} /><textarea className="min-h-[260px] w-full rounded-lg border px-3 py-2" value={value.content} placeholder="Enter policy content..." onChange={(event) => onChange("content", event.target.value)} /></div>;
 }
 
 function TextField({

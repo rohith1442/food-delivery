@@ -1,6 +1,7 @@
 import {
   Controller,
   Get,
+  Param,
   Query,
 } from '@nestjs/common';
 
@@ -20,4 +21,10 @@ export class SettingsController {
       app,
     );
   }
+
+  @Get('content')
+  async getContent() { return this.settingsService.getContent(); }
+
+  @Get('content/:type')
+  async getContentByType(@Param('type') type: string) { return this.settingsService.getContentByType(type); }
 }

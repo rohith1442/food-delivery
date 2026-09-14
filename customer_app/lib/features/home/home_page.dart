@@ -6,6 +6,7 @@ import '../../core/config/home_config.dart';
 import '../location/addresses_api_service.dart';
 import '../location/saved_addresses_page.dart';
 import '../orders/orders_page.dart';
+import '../notifications/notifications_page.dart';
 import '../profile/profile_page.dart';
 import '../restaurants/menu_page.dart';
 import '../restaurants/restaurants_page.dart';
@@ -425,9 +426,11 @@ class _HomePageState extends State<HomePage> {
               address: _selectedAddress,
               loadingAddress: _isLoadingAddress,
               onLocationTap: _chooseLocation,
-              onNotificationTap: () {
-                _showMessage('No new notifications.');
-              },
+              onNotificationTap: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const CustomerNotificationsPage(),
+                ),
+              ),
               onLogoutTap: _logout,
             ),
             const SizedBox(height: 22),

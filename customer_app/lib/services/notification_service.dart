@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart';
 
 import '../core/network/api_client.dart';
 
@@ -13,17 +14,26 @@ class NotificationService {
   final ApiClient _apiClient;
 
   Future<void> initialize() async {
-    await _requestPermission();
-
-    final token = await _messaging.getToken();
-
-    if (token != null && token.isNotEmpty) {
-      await _registerToken(token);
+    try {
+      await _requestPermission();
+      if (Platform.isIOS && await _messaging.getAPNSToken() == null) {
+        debugPrint('Customer notifications skipped: APNS token unavailable');
+        return;
+      }
+      final token = await _messaging.getToken();
+      if (token != null && token.isNotEmpty) await _registerToken(token);
+      _messaging.onTokenRefresh.listen((token) async {
+        try {
+          await _registerToken(token);
+        } catch (error) {
+          debugPrint(
+            'Unable to register refreshed customer notification token: $error',
+          );
+        }
+      });
+    } catch (error) {
+      debugPrint('Customer notification initialization skipped: $error');
     }
-
-    _messaging.onTokenRefresh.listen((token) async {
-      await _registerToken(token);
-    });
   }
 
   Future<void> _requestPermission() async {

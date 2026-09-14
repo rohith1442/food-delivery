@@ -34,6 +34,7 @@ interface GlobalSettings {
   currencySymbol?: string;
   supportPhone?: string;
   deliveryPromiseText?: string;
+  content?: Record<string, any>;
 
   home?: {
     enabledModules?: string[];
@@ -58,6 +59,34 @@ export class SettingsService {
   constructor(
     private readonly firebaseService: FirebaseService,
   ) {}
+
+  private getDefaultContent() {
+    return {
+      terms: { title: 'Terms & Conditions', content: '', version: '1.0', isEnabled: true },
+      privacy: { title: 'Privacy Policy', content: '', version: '1.0', isEnabled: true },
+      refundPolicy: { title: 'Refund & Cancellation Policy', content: '', version: '1.0', isEnabled: true },
+      deliveryPolicy: { title: 'Delivery Policy', content: '', version: '1.0', isEnabled: true },
+      about: { title: 'About Us', content: '', isEnabled: true },
+      support: { title: 'Contact Support', content: '', phone: '', email: '', whatsapp: '', workingHours: '', isEnabled: true },
+      permissions: { title: 'App Permissions', location: '', notifications: '', camera: '', photos: '', isEnabled: true },
+    };
+  }
+
+  async getContent() {
+    const snapshot = await this.firebaseService.getFirestore().collection('settings').doc('global').get();
+    const data = snapshot.exists ? snapshot.data() ?? {} : {};
+    const defaults = this.getDefaultContent() as Record<string, any>;
+    const current = (data.content ?? {}) as Record<string, any>;
+    const content: Record<string, any> = { ...defaults, ...current };
+    for (const key of Object.keys(defaults)) content[key] = { ...defaults[key], ...(current[key] ?? {}) };
+    return { content };
+  }
+
+  async getContentByType(type: string) {
+    const aliases: Record<string, string> = { terms: 'terms', privacy: 'privacy', refund: 'refundPolicy', 'refund-policy': 'refundPolicy', refundpolicy: 'refundPolicy', delivery: 'deliveryPolicy', 'delivery-policy': 'deliveryPolicy', deliverypolicy: 'deliveryPolicy', about: 'about', support: 'support', permissions: 'permissions' };
+    const key = aliases[type.trim().toLowerCase()];
+    return key ? { type: key, content: (await this.getContent()).content[key] } : { content: null };
+  }
 
   async getAppConfig(app: string) {
     const appType =

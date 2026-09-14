@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import 'order_details_page.dart';
 import 'orders_api_service.dart';
+import '../../core/config/app_branding.dart';
+import 'widgets/order_lifecycle.dart';
 
 class OrdersPage extends StatefulWidget {
   const OrdersPage({super.key});
@@ -169,6 +171,8 @@ class _OrdersPageState extends State<OrdersPage> {
           final orderId = order['id']?.toString() ?? '';
 
           final total = order['total']?.toString() ?? '0';
+          final currency =
+              AppBrandingController.instance.branding.currencySymbol;
 
           final status = _formatStatus(order['status']);
 
@@ -239,6 +243,11 @@ class _OrdersPageState extends State<OrdersPage> {
                     const SizedBox(height: 16),
                     Text(items, maxLines: 2, overflow: TextOverflow.ellipsis),
                     const SizedBox(height: 12),
+                    OrderLifecycle(
+                      status: order['status']?.toString() ?? '',
+                      compact: true,
+                    ),
+                    const SizedBox(height: 12),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -252,7 +261,7 @@ class _OrdersPageState extends State<OrdersPage> {
                           ),
                         ),
                         Text(
-                          '₹$total',
+                          '$currency$total',
                           style: const TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 16,

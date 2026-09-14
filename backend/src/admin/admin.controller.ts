@@ -241,6 +241,7 @@ async updateSettings(
         actionValue?: string;
       };
     };
+    content?: Record<string, unknown>;
   },
 ) {
   return this.adminService.updateSettings(body);

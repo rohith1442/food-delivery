@@ -48,6 +48,7 @@ dependencies:
   geocoding: ^5.0.0
   razorpay_flutter: ^1.4.6
   firebase_messaging: ^16.6.0
+  url_launcher: ^6.3.2
 
 dev_dependencies:
   flutter_test:
