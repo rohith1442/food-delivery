@@ -3,13 +3,7 @@ import { cert, getApps, initializeApp } from 'firebase-admin/app';
 import { getAuth, Auth } from 'firebase-admin/auth';
 import { getFirestore, Firestore } from 'firebase-admin/firestore';
 import { getStorage, Storage } from 'firebase-admin/storage';
-import {
-  getMessaging,
-  Messaging,
-} from 'firebase-admin/messaging';
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
-import path from 'node:path';
+import { getMessaging, Messaging } from 'firebase-admin/messaging';
 
 @Injectable()
 export class FirebaseService implements OnModuleInit {
@@ -25,18 +19,16 @@ export class FirebaseService implements OnModuleInit {
       apps.length > 0
         ? apps[0]
         : initializeApp({
-            credential: cert(
-              JSON.parse(
-                readFileSync(
-                  path.join(
-                    path.dirname(fileURLToPath(import.meta.url)),
-                    '../../config/firebase-service-account.json',
-                  ),
-                  'utf-8',
-                ),
+            credential: cert({
+              projectId: process.env.FIREBASE_PROJECT_ID,
+              clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+              privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(
+                /\\n/g,
+                '\n',
               ),
-            ),
+            }),
             storageBucket:
+              process.env.FIREBASE_STORAGE_BUCKET ??
               'food-delivery-e5521.firebasestorage.app',
           });
 

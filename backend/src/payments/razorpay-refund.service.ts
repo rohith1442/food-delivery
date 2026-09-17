@@ -8,6 +8,7 @@ import { ConfigService } from '@nestjs/config';
 import Razorpay from 'razorpay';
 
 import { FirebaseService } from '../firebase/firebase.service.js';
+import { SettlementsService } from '../settlements/settlements.service.js';
 
 @Injectable()
 export class RazorpayRefundService {
@@ -18,6 +19,7 @@ export class RazorpayRefundService {
   constructor(
     private readonly configService: ConfigService,
     private readonly firebaseService: FirebaseService,
+    private readonly settlementsService: SettlementsService,
   ) {
     const keyId =
       this.configService.get<string>('RAZORPAY_KEY_ID');
@@ -194,6 +196,8 @@ export class RazorpayRefundService {
 
         amountInPaise:
           payment.amountInPaise as number,
+
+        orderId: typeof payment.orderId === 'string' ? payment.orderId : null,
       };
     },
   );
@@ -264,6 +268,7 @@ export class RazorpayRefundService {
   // --------------------------------------------------
 
   try {
+    if (claimResult.action === 'CREATE_REFUND' && claimResult.orderId) await this.settlementsService.prepareSettlementForRefund(claimResult.orderId);
     this.logger.warn(
       `Initiating Razorpay refund paymentId=${paymentId} providerPaymentId=${claimResult.providerPaymentId} reason=${reason}`,
     );

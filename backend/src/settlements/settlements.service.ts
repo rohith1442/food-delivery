@@ -74,7 +74,8 @@ export class SettlementsService {
     if (!snapshot.exists) throw new BadRequestException('Merchant settlement not found');
     const settlement = snapshot.data() as any;
     if (settlement?.providerTransferId) throw new BadRequestException('Settlement already has a provider transfer ID');
-    if (!['FAILED', 'ON_HOLD'].includes(settlement?.status)) throw new BadRequestException('Settlement cannot be retried in its current state');
+    if (settlement?.reconciliationResult !== 'NOT_FOUND') throw new BadRequestException('Reconcile settlement before retrying');
+    await ref.set({ reconciliationResult: null, reconciliationRequired: false, failureReason: null, updatedAt: new Date().toISOString() }, { merge: true });
     return this.finalizeOrderSettlement(orderId);
   }
   async reconcileMerchantSettlement(orderId: string) {
@@ -84,10 +85,13 @@ export class SettlementsService {
     if (!order?.providerPaymentId) throw new BadRequestException('Provider payment is missing');
     const transfers = await this.route.listPaymentTransfers(order.providerPaymentId);
     const transfer = (transfers?.items ?? transfers?.transfers ?? []).find((item: any) => item.notes?.orderId === orderId);
-    if (!transfer?.id) { await ref.set({ status: 'ON_HOLD', reconciliationRequired: true, failureReason: 'No matching provider transfer found', updatedAt: new Date().toISOString() }, { merge: true }); return { success: true, matched: false }; }
-    await ref.set({ providerTransferId: transfer.id, status: transfer.status === 'processed' ? 'PAID' : 'PROCESSING', reconciliationRequired: false, failureReason: null, ...(transfer.status === 'processed' ? { paidAt: new Date().toISOString() } : {}), updatedAt: new Date().toISOString() }, { merge: true });
+    const now = new Date().toISOString();
+    if (!transfer?.id) { await ref.set({ status: 'ON_HOLD', reconciliationRequired: false, reconciliationResult: 'NOT_FOUND', reconciledAt: now, failureReason: 'No matching provider transfer found', updatedAt: now }, { merge: true }); return { success: true, matched: false }; }
+    await ref.set({ providerTransferId: transfer.id, status: transfer.status === 'processed' ? 'PAID' : 'PROCESSING', reconciliationRequired: false, reconciliationResult: 'FOUND', reconciledAt: now, failureReason: null, ...(transfer.status === 'processed' ? { paidAt: now } : {}), updatedAt: now }, { merge: true });
     return { success: true, matched: true, providerTransferId: transfer.id };
   }
+  async prepareSettlementForRefund(orderId: string) { const db = this.firebase.getFirestore(); const ref = db.collection('settlements').doc(`${orderId}_MERCHANT`); const snapshot = await ref.get(); if (!snapshot.exists) return { success: true, action: 'NO_SETTLEMENT' }; const settlement = snapshot.data() as any; const now = new Date().toISOString(); if (['PENDING', 'ON_HOLD', 'FAILED'].includes(settlement.status) && !settlement.providerTransferId) { await ref.set({ status: 'CANCELLED', failureReason: 'Customer refund initiated before merchant transfer', updatedAt: now }, { merge: true }); return { success: true, action: 'CANCELLED' }; } if (['PROCESSING', 'PAID'].includes(settlement.status)) { await ref.set({ status: 'REVERSAL_REQUIRED', failureReason: 'Customer refund requires merchant transfer reversal', updatedAt: now }, { merge: true }); return { success: true, action: 'REVERSAL_REQUIRED' }; } return { success: true, action: 'UNCHANGED' }; }
+  async reverseMerchantSettlement(orderId: string) { const db = this.firebase.getFirestore(); const ref = db.collection('settlements').doc(`${orderId}_MERCHANT`); const snapshot = await ref.get(); const settlement = snapshot.data() as any; if (!snapshot.exists || settlement?.status !== 'REVERSAL_REQUIRED' || !settlement.providerTransferId) throw new BadRequestException('Merchant settlement cannot be reversed'); const result = await this.route.reverseTransfer({ transferId: settlement.providerTransferId, amountInPaise: Math.round(Number(settlement.netAmount) * 100), orderId }); await ref.set({ reversalId: result.id ?? null, reversalStatus: 'PROCESSING', updatedAt: new Date().toISOString() }, { merge: true }); return { success: true, reversalId: result.id ?? null }; }
 
   async payoutRider(riderId: string) {
     const db = this.firebase.getFirestore();

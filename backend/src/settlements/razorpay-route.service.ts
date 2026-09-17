@@ -37,6 +37,7 @@ export class RazorpayRouteService {
     if (!response.ok) throw new BadRequestException(data?.error?.description ?? 'Unable to reconcile merchant transfers');
     return data;
   }
+  async reverseTransfer(input: { transferId: string; amountInPaise?: number; orderId: string }) { this.ensureConfigured(); const body: Record<string, unknown> = { notes: { orderId: input.orderId, reason: 'CUSTOMER_REFUND' } }; if (input.amountInPaise) body.amount = input.amountInPaise; const response = await fetch(`https://api.razorpay.com/v1/transfers/${input.transferId}/reversals`, { method: 'POST', headers: { Authorization: this.authHeader, 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); const data = await response.json() as any; if (!response.ok) throw new BadRequestException(data?.error?.description ?? 'Unable to reverse merchant transfer'); return data; }
   async createLinkedAccount(input: { uid: string; email: string; phone: string; legalBusinessName: string; customerFacingBusinessName: string; businessType: string }) {
     this.ensureConfigured();
     const response = await fetch('https://api.razorpay.com/v2/accounts', { method: 'POST', headers: { Authorization: this.authHeader, 'Content-Type': 'application/json' }, body: JSON.stringify({ email: input.email, phone: input.phone, legal_business_name: input.legalBusinessName, customer_facing_business_name: input.customerFacingBusinessName, business_type: input.businessType, reference_id: input.uid }) });
