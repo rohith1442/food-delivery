@@ -159,6 +159,9 @@ export default function SettingsPage() {
   const [uploadingImage, setUploadingImage] =
     useState<string | null>(null);
 
+  const [uploadedImageNotice, setUploadedImageNotice] =
+    useState<string | null>(null);
+
   const loadSettings = useCallback(async () => {
     try {
       setLoading(true);
@@ -184,6 +187,7 @@ export default function SettingsPage() {
                       ...defaultSettings.home.promoBanners[0],
                       ...response.data.home.promoBanner,
                     },
+                    defaultSettings.home.promoBanners[1],
                   ]
                 : defaultSettings.home.promoBanners,
           sections:
@@ -252,11 +256,7 @@ export default function SettingsPage() {
     const response = await api.post<{
       success: boolean;
       imageUrl: string;
-    }>(
-      `/admin/settings/image?type=${type}`,
-      formData,
-      { headers: { "Content-Type": "multipart/form-data" } },
-    );
+    }>(`/admin/settings/image?type=${type}`, formData);
 
     return response.data.imageUrl;
   };
@@ -589,10 +589,18 @@ export default function SettingsPage() {
                         const file = event.target.files?.[0];
                         if (!file) return;
 
+                        const validationError = validateImageFile(file);
+                        if (validationError) {
+                          setError(validationError);
+                          event.target.value = "";
+                          return;
+                        }
+
                         try {
                           setUploadingImage("logo");
                           const imageUrl = await uploadImage(file, "logo");
                           updateField("logoUrl", imageUrl);
+                          setUploadedImageNotice("logo");
                         } catch (error) {
                           setError(
                             axios.isAxiosError(error)
@@ -608,6 +616,11 @@ export default function SettingsPage() {
                     />
                   </label>
                 </div>
+                {uploadedImageNotice === "logo" && (
+                  <p className="mt-2 text-xs text-gray-500">
+                    Image uploaded. Click Save Settings to publish this change.
+                  </p>
+                )}
               </div>
 
               <ColorField
@@ -1021,6 +1034,8 @@ export default function SettingsPage() {
                         index={index}
                         banner={banner}
                         uploadingImage={uploadingImage}
+                        uploadedImageNotice={uploadedImageNotice}
+                        setUploadedImageNotice={setUploadedImageNotice}
                         setUploadingImage={setUploadingImage}
                         uploadImage={uploadImage}
                         onImageUrl={(value) =>
@@ -1113,10 +1128,25 @@ export default function SettingsPage() {
   );
 }
 
+function validateImageFile(file: File): string | null {
+  if (file.size > 5 * 1024 * 1024) {
+    return "Image must be 5 MB or smaller.";
+  }
+
+  const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
+  if (!allowedTypes.includes(file.type)) {
+    return "Only JPG, PNG and WEBP images are allowed.";
+  }
+
+  return null;
+}
+
 function BannerUpload({
   index,
   banner,
   uploadingImage,
+  uploadedImageNotice,
+  setUploadedImageNotice,
   setUploadingImage,
   uploadImage,
   onImageUrl,
@@ -1125,6 +1155,8 @@ function BannerUpload({
   index: number;
   banner: PromoBanner;
   uploadingImage: string | null;
+  uploadedImageNotice: string | null;
+  setUploadedImageNotice: (value: string | null) => void;
   setUploadingImage: (value: string | null) => void;
   uploadImage: (
     file: File,
@@ -1147,6 +1179,12 @@ function BannerUpload({
         />
       )}
 
+      {uploadedImageNotice === uploadKey && (
+        <p className="mt-2 text-xs text-gray-500">
+          Image uploaded. Click Save Settings to publish this change.
+        </p>
+      )}
+
       <label className="mt-3 inline-block cursor-pointer rounded-lg bg-gray-900 px-4 py-2 text-sm text-white">
         {uploadingImage === uploadKey ? "Uploading..." : "Upload Banner"}
         <input
@@ -1158,10 +1196,18 @@ function BannerUpload({
             const file = event.target.files?.[0];
             if (!file) return;
 
+            const validationError = validateImageFile(file);
+            if (validationError) {
+              onError(validationError);
+              event.target.value = "";
+              return;
+            }
+
             try {
               setUploadingImage(uploadKey);
               const imageUrl = await uploadImage(file, "promo-banner");
               onImageUrl(imageUrl);
+              setUploadedImageNotice(uploadKey);
             } catch (error) {
               onError(
                 axios.isAxiosError(error)
