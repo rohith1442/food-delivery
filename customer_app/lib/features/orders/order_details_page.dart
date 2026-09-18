@@ -528,6 +528,13 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
                         storeId: storeId,
                         storeName: storeName,
                         storeAddress: storeAddress,
+                        storeImageUrl: order['storeImageUrl']?.toString() ?? '',
+                        storeRating: order['storeRating'] is num
+                            ? (order['storeRating'] as num).toDouble()
+                            : 0.0,
+                        ratingCount: order['ratingCount'] is num
+                            ? (order['ratingCount'] as num).toInt()
+                            : 0,
                       ),
                     ),
                   );

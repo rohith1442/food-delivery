@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:dio/dio.dart';
 
 import 'onboarding_api_service.dart';
 
@@ -94,6 +95,15 @@ class _DeliveryOnboardingPageState extends State<DeliveryOnboardingPage> {
     if (_account.text.trim() != _confirm.text.trim()) {
       return setState(() => _error = 'Bank account numbers do not match.');
     }
+    final requiredDocuments = ['IDENTITY_PROOF', 'PAN', 'BANK_PROOF'];
+    if (_needsVehicleDocuments) {
+      requiredDocuments.addAll(['DRIVING_LICENCE', 'RC', 'INSURANCE']);
+    }
+    for (final type in requiredDocuments) {
+      if (!_documents.containsKey(type)) {
+        return setState(() => _error = '$type document is required.');
+      }
+    }
     setState(() {
       _loading = true;
       _error = null;
@@ -126,13 +136,24 @@ class _DeliveryOnboardingPageState extends State<DeliveryOnboardingPage> {
       }
       await _api.submit();
       if (mounted) context.go('/approval-pending');
-    } catch (_) {
-      if (mounted) {
-        setState(() {
-          _loading = false;
-          _error = 'Unable to submit verification.';
-        });
+    } on DioException catch (error) {
+      if (!mounted) return;
+      final data = error.response?.data;
+      var message = 'Unable to submit verification.';
+      if (data is Map && data['message'] != null) {
+        final value = data['message'];
+        message = value is List ? value.join('\n') : value.toString();
       }
+      setState(() {
+        _loading = false;
+        _error = message;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = error.toString();
+      });
     }
   }
 

@@ -50,7 +50,10 @@ class _ProfilePageState extends State<ProfilePage> {
             ? Map<String, dynamic>.from(rawUser)
             : null;
       });
-    } catch (_) {
+    } catch (error, stackTrace) {
+      debugPrint('Profile load failed: $error');
+      debugPrintStack(stackTrace: stackTrace);
+
       if (!mounted) {
         return;
       }
@@ -98,18 +101,21 @@ class _ProfilePageState extends State<ProfilePage> {
   @override
   Widget build(BuildContext context) {
     if (_loading) {
-      return const Center(child: CircularProgressIndicator());
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     if (_error != null) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(_error!),
-            const SizedBox(height: 12),
-            FilledButton(onPressed: _loadProfile, child: const Text('Retry')),
-          ],
+      return Scaffold(
+        appBar: AppBar(title: const Text('Profile')),
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(_error!),
+              const SizedBox(height: 12),
+              FilledButton(onPressed: _loadProfile, child: const Text('Retry')),
+            ],
+          ),
         ),
       );
     }

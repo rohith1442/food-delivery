@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:dio/dio.dart';
 
 import 'onboarding_api_service.dart';
 
@@ -89,6 +90,15 @@ class _MerchantOnboardingPageState extends State<MerchantOnboardingPage> {
     if (_account.text.trim() != _confirm.text.trim()) {
       return setState(() => _error = 'Bank account numbers do not match.');
     }
+    final requiredDocuments = ['PAN', 'FSSAI', 'BANK_PROOF'];
+    for (final type in requiredDocuments) {
+      if (!_documents.containsKey(type)) {
+        return setState(() => _error = '$type document is required.');
+      }
+    }
+    if (_gstin.text.trim().isNotEmpty && !_documents.containsKey('GST')) {
+      return setState(() => _error = 'GST certificate is required.');
+    }
     setState(() {
       _loading = true;
       _error = null;
@@ -117,13 +127,24 @@ class _MerchantOnboardingPageState extends State<MerchantOnboardingPage> {
       }
       await _api.submit();
       if (mounted) context.go('/approval-pending');
-    } catch (_) {
-      if (mounted) {
-        setState(() {
-          _loading = false;
-          _error = 'Unable to submit verification.';
-        });
+    } on DioException catch (error) {
+      if (!mounted) return;
+      final data = error.response?.data;
+      var message = 'Unable to submit verification.';
+      if (data is Map && data['message'] != null) {
+        final value = data['message'];
+        message = value is List ? value.join('\n') : value.toString();
       }
+      setState(() {
+        _loading = false;
+        _error = message;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = error.toString();
+      });
     }
   }
 
@@ -132,11 +153,13 @@ class _MerchantOnboardingPageState extends State<MerchantOnboardingPage> {
     TextEditingController controller, {
     bool obscure = false,
     bool optional = false,
+    ValueChanged<String>? onChanged,
   }) => Padding(
     padding: const EdgeInsets.only(bottom: 14),
     child: TextField(
       controller: controller,
       obscureText: obscure,
+      onChanged: onChanged,
       decoration: InputDecoration(
         labelText: optional ? '$label (optional)' : label,
       ),
@@ -174,7 +197,12 @@ class _MerchantOnboardingPageState extends State<MerchantOnboardingPage> {
         Text('Compliance', style: Theme.of(context).textTheme.titleLarge),
         const SizedBox(height: 18),
         _field('PAN', _pan),
-        _field('GSTIN', _gstin, optional: true),
+        _field(
+          'GSTIN',
+          _gstin,
+          optional: true,
+          onChanged: (_) => setState(() {}),
+        ),
         _field('FSSAI number', _fssai),
         const SizedBox(height: 28),
         Text('Bank Details', style: Theme.of(context).textTheme.titleLarge),

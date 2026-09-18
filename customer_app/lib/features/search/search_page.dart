@@ -110,6 +110,13 @@ class _SearchPageState extends State<SearchPage> {
     final storeId = store['id']?.toString() ?? '';
     final storeName = store['name']?.toString() ?? 'Store';
     final storeAddress = store['address']?.toString() ?? '';
+    final storeImageUrl = store['imageUrl']?.toString() ?? '';
+    final storeRating = store['ratingAverage'] is num
+        ? (store['ratingAverage'] as num).toDouble()
+        : 0.0;
+    final ratingCount = store['ratingCount'] is num
+        ? (store['ratingCount'] as num).toInt()
+        : 0;
 
     if (storeId.isEmpty) return;
 
@@ -126,6 +133,9 @@ class _SearchPageState extends State<SearchPage> {
           storeId: storeId,
           storeName: storeName,
           storeAddress: storeAddress,
+          storeImageUrl: storeImageUrl,
+          storeRating: storeRating,
+          ratingCount: ratingCount,
         ),
       ),
     );
@@ -152,6 +162,13 @@ class _SearchPageState extends State<SearchPage> {
     final storeId = product['storeId']?.toString() ?? '';
     final storeName = product['storeName']?.toString() ?? 'Store';
     final storeAddress = product['storeAddress']?.toString() ?? '';
+    final storeImageUrl = product['storeImageUrl']?.toString() ?? '';
+    final storeRating = product['storeRating'] is num
+        ? (product['storeRating'] as num).toDouble()
+        : 0.0;
+    final ratingCount = product['ratingCount'] is num
+        ? (product['ratingCount'] as num).toInt()
+        : 0;
 
     if (storeId.isEmpty) return;
 
@@ -168,6 +185,9 @@ class _SearchPageState extends State<SearchPage> {
           storeId: storeId,
           storeName: storeName,
           storeAddress: storeAddress,
+          storeImageUrl: storeImageUrl,
+          storeRating: storeRating,
+          ratingCount: ratingCount,
         ),
       ),
     );

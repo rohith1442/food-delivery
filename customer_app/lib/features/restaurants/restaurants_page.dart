@@ -148,6 +148,14 @@ class _RestaurantsPageState extends State<RestaurantsPage> {
 
         final imageUrl = store['imageUrl']?.toString();
 
+        final ratingAverage = store['ratingAverage'] is num
+            ? (store['ratingAverage'] as num).toDouble()
+            : 0.0;
+
+        final ratingCount = store['ratingCount'] is num
+            ? (store['ratingCount'] as num).toInt()
+            : 0;
+
         final minimumOrder = _toNumber(store['minimumOrder']);
 
         final isOpen = store['isOpen'] == true;
@@ -168,6 +176,9 @@ class _RestaurantsPageState extends State<RestaurantsPage> {
                           storeId: storeId,
                           storeName: name,
                           storeAddress: address,
+                          storeImageUrl: imageUrl ?? '',
+                          storeRating: ratingAverage,
+                          ratingCount: ratingCount,
                         ),
                       ),
                     );

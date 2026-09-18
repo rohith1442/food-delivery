@@ -52,12 +52,12 @@ class PromoBannerConfig {
 class HomeConfig {
   final List<String> enabledModules;
   final List<HomeSectionConfig> sections;
-  final PromoBannerConfig promoBanner;
+  final List<PromoBannerConfig> promoBanners;
 
   const HomeConfig({
     required this.enabledModules,
     required this.sections,
-    required this.promoBanner,
+    required this.promoBanners,
   });
 
   static const fallback = HomeConfig(
@@ -68,14 +68,24 @@ class HomeConfig {
       HomeSectionConfig(id: 'categories', enabled: true, sortOrder: 3),
       HomeSectionConfig(id: 'nearby', enabled: true, sortOrder: 4),
     ],
-    promoBanner: PromoBannerConfig(
-      enabled: true,
-      title: 'Fresh deals for you',
-      subtitle: 'Order your favourites today',
-      imageUrl: '',
-      actionType: 'NONE',
-      actionValue: '',
-    ),
+    promoBanners: [
+      PromoBannerConfig(
+        enabled: true,
+        title: 'Fresh deals for you',
+        subtitle: 'Order your favourites today',
+        imageUrl: '',
+        actionType: 'NONE',
+        actionValue: '',
+      ),
+      PromoBannerConfig(
+        enabled: true,
+        title: 'Groceries delivered fast',
+        subtitle: 'Daily essentials at your doorstep',
+        imageUrl: '',
+        actionType: 'MODULE',
+        actionValue: 'grocery',
+      ),
+    ],
   );
 
   factory HomeConfig.fromJson(Map<String, dynamic>? json) {
@@ -99,16 +109,21 @@ class HomeConfig {
         .where((section) => section.id.isNotEmpty)
         .toList();
 
-    final promoJson = json['promoBanner'] is Map
-        ? Map<String, dynamic>.from(json['promoBanner'] as Map)
-        : null;
+    final bannerList = (json['promoBanners'] as List<dynamic>?)
+        ?.whereType<Map>()
+        .map(
+          (item) => PromoBannerConfig.fromJson(Map<String, dynamic>.from(item)),
+        )
+        .toList();
 
     return HomeConfig(
       enabledModules: modules ?? fallback.enabledModules,
       sections: sections == null || sections.isEmpty
           ? fallback.sections
           : sections,
-      promoBanner: PromoBannerConfig.fromJson(promoJson ?? <String, dynamic>{}),
+      promoBanners: bannerList == null || bannerList.isEmpty
+          ? fallback.promoBanners
+          : bannerList,
     );
   }
 

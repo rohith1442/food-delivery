@@ -264,6 +264,16 @@ class _HomePageState extends State<HomePage> {
 
     final storeAddress = store['address']?.toString() ?? '';
 
+    final storeImageUrl = store['imageUrl']?.toString() ?? '';
+
+    final storeRating = store['ratingAverage'] is num
+        ? (store['ratingAverage'] as num).toDouble()
+        : 0.0;
+
+    final ratingCount = store['ratingCount'] is num
+        ? (store['ratingCount'] as num).toInt()
+        : 0;
+
     final isOpen = store['isOpen'] == true;
 
     if (!isOpen || storeId.isEmpty) {
@@ -276,6 +286,9 @@ class _HomePageState extends State<HomePage> {
           storeId: storeId,
           storeName: storeName,
           storeAddress: storeAddress,
+          storeImageUrl: storeImageUrl,
+          storeRating: storeRating,
+          ratingCount: ratingCount,
         ),
       ),
     );
@@ -287,9 +300,7 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
-  void _onPromoTap(HomeConfig homeConfig) {
-    final promo = homeConfig.promoBanner;
-
+  void _onPromoTap(PromoBannerConfig promo) {
     switch (promo.actionType) {
       case 'MODULE':
         if (promo.actionValue.isNotEmpty) {
@@ -519,19 +530,34 @@ class _HomePageState extends State<HomePage> {
   }
 
   List<Widget> _buildPromoSlivers(HomeConfig config) {
-    if (!config.promoBanner.enabled) {
+    final banners = config.promoBanners
+        .where((banner) => banner.enabled)
+        .toList();
+
+    if (banners.isEmpty) {
       return [];
     }
 
     return [
       SliverToBoxAdapter(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: PromoBanner(
-            title: config.promoBanner.title,
-            subtitle: config.promoBanner.subtitle,
-            imageUrl: config.promoBanner.imageUrl,
-            onTap: () => _onPromoTap(config),
+        child: SizedBox(
+          height: 170,
+          child: PageView.builder(
+            controller: PageController(viewportFraction: 0.92),
+            itemCount: banners.length,
+            itemBuilder: (context, index) {
+              final banner = banners[index];
+
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+                child: PromoBanner(
+                  title: banner.title,
+                  subtitle: banner.subtitle,
+                  imageUrl: banner.imageUrl,
+                  onTap: () => _onPromoTap(banner),
+                ),
+              );
+            },
           ),
         ),
       ),

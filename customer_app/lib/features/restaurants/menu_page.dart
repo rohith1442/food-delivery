@@ -1,25 +1,33 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../cart/cart_provider.dart';
 import '../products/product_details_page.dart';
 import 'stores_api_service.dart';
 
-class MenuPage extends StatefulWidget {
+class MenuPage extends ConsumerStatefulWidget {
   const MenuPage({
     super.key,
     required this.storeId,
     required this.storeName,
     required this.storeAddress,
+    required this.storeImageUrl,
+    required this.storeRating,
+    required this.ratingCount,
   });
 
   final String storeId;
   final String storeName;
   final String storeAddress;
+  final String storeImageUrl;
+  final double storeRating;
+  final int ratingCount;
 
   @override
   State<MenuPage> createState() => _MenuPageState();
 }
 
-class _MenuPageState extends State<MenuPage> {
+class _MenuPageState extends ConsumerState<MenuPage> {
   final StoresApiService _apiService = StoresApiService();
 
   bool _loading = true;
@@ -133,24 +141,129 @@ class _MenuPageState extends State<MenuPage> {
   }
 
   Widget _buildStoreHeader() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-      color: Theme.of(context).colorScheme.surfaceContainerHighest,
-      child: Row(
-        children: [
-          const Icon(Icons.location_on_outlined, size: 20),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              widget.storeAddress,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          height: 190,
+          width: double.infinity,
+          child: widget.storeImageUrl.isNotEmpty
+              ? Image.network(
+                  widget.storeImageUrl,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) =>
+                      const Icon(Icons.storefront, size: 60),
+                )
+              : Container(
+                  color: Colors.grey.shade200,
+                  child: const Icon(Icons.storefront, size: 60),
+                ),
+        ),
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                widget.storeName,
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  const Icon(Icons.star, color: Colors.amber, size: 20),
+                  const SizedBox(width: 4),
+                  Text(
+                    widget.ratingCount > 0
+                        ? '${widget.storeRating.toStringAsFixed(1)} (${widget.ratingCount})'
+                        : 'New',
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  const Icon(Icons.location_on_outlined, size: 18),
+                  const SizedBox(width: 6),
+                  Expanded(child: Text(widget.storeAddress)),
+                ],
+              ),
+            ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
+  }
+
+  Future<void> _addToCart(Map<String, dynamic> product) async {
+    final productId = product['id']?.toString() ?? '';
+    final name = product['name']?.toString() ?? 'Product';
+    final price = _getPrice(product['price']);
+    final stock = _getPrice(product['stock']);
+    final cartNotifier = ref.read(cartProvider.notifier);
+
+    final result = cartNotifier.addItem(
+      storeId: widget.storeId,
+      storeName: widget.storeName,
+      storeAddress: widget.storeAddress,
+      id: productId,
+      name: name,
+      price: price,
+      availableStock: stock,
+    );
+
+    if (!mounted) return;
+
+    if (result == AddToCartResult.differentStore) {
+      final replace = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Replace cart?'),
+          content: const Text(
+            'Your cart contains items from another store. '
+            'Clear the cart and add this item?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Replace'),
+            ),
+          ],
+        ),
+      );
+
+      if (replace == true) {
+        cartNotifier.clearCart();
+        cartNotifier.addItem(
+          storeId: widget.storeId,
+          storeName: widget.storeName,
+          storeAddress: widget.storeAddress,
+          id: productId,
+          name: name,
+          price: price,
+          availableStock: stock,
+        );
+      }
+      return;
+    }
+
+    final message = switch (result) {
+      AddToCartResult.added => 'Added to cart',
+      AddToCartResult.outOfStock => 'This item is out of stock',
+      AddToCartResult.maxStockReached => 'Only $stock available',
+      AddToCartResult.differentStore => null,
+    };
+    if (message != null) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(message)));
+    }
   }
 
   Widget _buildCategories() {
@@ -316,12 +429,26 @@ class _MenuPageState extends State<MenuPage> {
                   ],
                 ),
               ),
-              trailing: Text(
-                '₹$price',
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
+              trailing: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    '₹$price',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    height: 34,
+                    child: FilledButton(
+                      onPressed: stock <= 0 ? null : () => _addToCart(product),
+                      child: const Text('ADD'),
+                    ),
+                  ),
+                ],
               ),
             ),
           );

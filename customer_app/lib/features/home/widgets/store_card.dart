@@ -31,106 +31,98 @@ class StoreCard extends StatelessWidget {
         : 0;
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 14),
+      margin: const EdgeInsets.only(bottom: 18),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: isOpen ? onTap : null,
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Row(
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(16),
-                child: Container(
-                  width: 96,
-                  height: 96,
-                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                  child: imageUrl != null && imageUrl.isNotEmpty
-                      ? Image.network(
-                          imageUrl,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) {
-                            return const Icon(
-                              Icons.storefront_outlined,
-                              size: 36,
-                            );
-                          },
-                        )
-                      : const Icon(Icons.storefront_outlined, size: 36),
-                ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      name,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    if (address.isNotEmpty) ...[
-                      const SizedBox(height: 5),
-                      Text(
-                        address,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontSize: 12, color: Colors.grey[700]),
-                      ),
-                    ],
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.circle,
-                          size: 8,
-                          color: isOpen ? Colors.green : Colors.red,
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          isOpen ? 'Open' : 'Closed',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: isOpen ? Colors.green : Colors.red,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              width: double.infinity,
+              height: 180,
+              child: imageUrl != null && imageUrl.isNotEmpty
+                  ? Image.network(
+                      imageUrl,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => _storePlaceholder(context),
+                    )
+                  : _storePlaceholder(context),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          name,
+                          style: const TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
-                        if (minimumOrder > 0) ...[
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              'Min $currencySymbol${_formatAmount(minimumOrder)}',
-                              style: const TextStyle(fontSize: 11),
+                      ),
+                      if (ratingCount > 0)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.green,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            ratingAverage.toStringAsFixed(1),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
-                        ],
-                      ],
-                    ),
+                        ),
+                    ],
+                  ),
+                  if (address.isNotEmpty) ...[
                     const SizedBox(height: 6),
-                    if (ratingCount > 0)
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.star, size: 16, color: Colors.amber),
-                          const SizedBox(width: 4),
-                          Text(
-                            '${ratingAverage.toStringAsFixed(1)} ($ratingCount)',
-                            style: const TextStyle(fontWeight: FontWeight.w600),
-                          ),
-                        ],
-                      )
-                    else
-                      const Text('New', style: TextStyle(fontSize: 12)),
+                    Text(address, maxLines: 1, overflow: TextOverflow.ellipsis),
                   ],
-                ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.circle,
+                        size: 8,
+                        color: isOpen ? Colors.green : Colors.red,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        isOpen ? 'Open' : 'Closed',
+                        style: const TextStyle(fontSize: 14),
+                      ),
+                      if (minimumOrder > 0) ...[
+                        const SizedBox(width: 12),
+                        Text(
+                          'Min $currencySymbol${_formatAmount(minimumOrder)}',
+                        ),
+                      ],
+                    ],
+                  ),
+                ],
               ),
-              const Icon(Icons.chevron_right),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
+    );
+  }
+
+  Widget _storePlaceholder(BuildContext context) {
+    return Container(
+      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+      child: const Center(child: Icon(Icons.storefront_outlined, size: 48)),
     );
   }
 
