@@ -10,6 +10,15 @@ import {
 
 import { api } from "@/lib/api";
 
+type PromoBanner = {
+  enabled: boolean;
+  title: string;
+  subtitle: string;
+  imageUrl: string;
+  actionType: "NONE" | "MODULE" | "CATEGORY";
+  actionValue: string;
+};
+
 interface Settings {
   deliveryFee: number;
   minimumOrder: number;
@@ -50,14 +59,8 @@ interface Settings {
       enabled: boolean;
       sortOrder: number;
     }>;
-    promoBanner: {
-      enabled: boolean;
-      title: string;
-      subtitle: string;
-      imageUrl: string;
-      actionType: "NONE" | "MODULE" | "CATEGORY";
-      actionValue: string;
-    };
+    promoBanners: PromoBanner[];
+    promoBanner?: PromoBanner;
   };
 
   updatedAt?: string;
@@ -116,14 +119,24 @@ const defaultSettings: Settings = {
       { id: "categories", enabled: true, sortOrder: 3 },
       { id: "nearby", enabled: true, sortOrder: 4 },
     ],
-    promoBanner: {
-      enabled: true,
-      title: "Fresh deals for you",
-      subtitle: "Order your favourites today",
-      imageUrl: "",
-      actionType: "NONE",
-      actionValue: "",
-    },
+    promoBanners: [
+      {
+        enabled: true,
+        title: "Fresh deals for you",
+        subtitle: "Order your favourites today",
+        imageUrl: "",
+        actionType: "NONE",
+        actionValue: "",
+      },
+      {
+        enabled: true,
+        title: "Groceries delivered fast",
+        subtitle: "Daily essentials at your doorstep",
+        imageUrl: "",
+        actionType: "MODULE",
+        actionValue: "grocery",
+      },
+    ],
   },
 };
 
@@ -143,6 +156,9 @@ export default function SettingsPage() {
   const [message, setMessage] =
     useState("");
 
+  const [uploadingImage, setUploadingImage] =
+    useState<string | null>(null);
+
   const loadSettings = useCallback(async () => {
     try {
       setLoading(true);
@@ -159,10 +175,17 @@ export default function SettingsPage() {
         home: {
           ...defaultSettings.home,
           ...(response.data.home ?? {}),
-          promoBanner: {
-            ...defaultSettings.home.promoBanner,
-            ...(response.data.home?.promoBanner ?? {}),
-          },
+          promoBanners:
+            response.data.home?.promoBanners?.length
+              ? response.data.home.promoBanners
+              : response.data.home?.promoBanner
+                ? [
+                    {
+                      ...defaultSettings.home.promoBanners[0],
+                      ...response.data.home.promoBanner,
+                    },
+                  ]
+                : defaultSettings.home.promoBanners,
           sections:
             response.data.home?.sections ??
             defaultSettings.home.sections,
@@ -219,6 +242,25 @@ export default function SettingsPage() {
     }));
   };
 
+  const uploadImage = async (
+    file: File,
+    type: "logo" | "promo-banner",
+  ) => {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const response = await api.post<{
+      success: boolean;
+      imageUrl: string;
+    }>(
+      `/admin/settings/image?type=${type}`,
+      formData,
+      { headers: { "Content-Type": "multipart/form-data" } },
+    );
+
+    return response.data.imageUrl;
+  };
+
   const toggleModule = (
     moduleId: "food" | "grocery",
   ) => {
@@ -269,20 +311,52 @@ export default function SettingsPage() {
     }));
   };
 
-  const updatePromoField = <
-    K extends keyof Settings["home"]["promoBanner"],
-  >(
+  const updatePromoField = <K extends keyof PromoBanner>(
+    index: number,
     field: K,
-    value: Settings["home"]["promoBanner"][K],
+    value: PromoBanner[K],
   ) => {
     setSettings((current) => ({
       ...current,
       home: {
         ...current.home,
-        promoBanner: {
-          ...current.home.promoBanner,
-          [field]: value,
-        },
+        promoBanners: current.home.promoBanners.map((banner, bannerIndex) =>
+          bannerIndex === index
+            ? { ...banner, [field]: value }
+            : banner,
+        ),
+      },
+    }));
+  };
+
+  const addPromoBanner = () => {
+    setSettings((current) => ({
+      ...current,
+      home: {
+        ...current.home,
+        promoBanners: [
+          ...current.home.promoBanners,
+          {
+            enabled: true,
+            title: "New banner",
+            subtitle: "",
+            imageUrl: "",
+            actionType: "NONE",
+            actionValue: "",
+          },
+        ],
+      },
+    }));
+  };
+
+  const removePromoBanner = (index: number) => {
+    setSettings((current) => ({
+      ...current,
+      home: {
+        ...current.home,
+        promoBanners: current.home.promoBanners.filter(
+          (_, bannerIndex) => bannerIndex !== index,
+        ),
       },
     }));
   };
@@ -346,14 +420,14 @@ export default function SettingsPage() {
         home: {
           enabledModules: settings.home.enabledModules,
           sections: settings.home.sections,
-          promoBanner: {
-            enabled: settings.home.promoBanner.enabled,
-            title: settings.home.promoBanner.title.trim(),
-            subtitle: settings.home.promoBanner.subtitle.trim(),
-            imageUrl: settings.home.promoBanner.imageUrl.trim(),
-            actionType: settings.home.promoBanner.actionType,
-            actionValue: settings.home.promoBanner.actionValue.trim(),
-          },
+          promoBanners: settings.home.promoBanners.map((banner) => ({
+            enabled: banner.enabled,
+            title: banner.title.trim(),
+            subtitle: banner.subtitle.trim(),
+            imageUrl: banner.imageUrl.trim(),
+            actionType: banner.actionType,
+            actionValue: banner.actionValue.trim(),
+          })),
         },
         content: settings.content,
         payments: settings.payments,
@@ -488,14 +562,53 @@ export default function SettingsPage() {
                 }
               />
 
-              <TextField
-                label="Logo URL"
-                value={settings.logoUrl}
-                placeholder="https://..."
-                onChange={(value) =>
-                  updateField("logoUrl", value)
-                }
-              />
+              <div>
+                <span className="text-sm font-medium text-gray-700">
+                  App Logo
+                </span>
+
+                <div className="mt-2 flex items-center gap-4">
+                  {settings.logoUrl && (
+                    <img
+                      src={settings.logoUrl}
+                      alt="Logo preview"
+                      className="h-20 w-20 rounded-xl border object-cover"
+                    />
+                  )}
+
+                  <label className="cursor-pointer rounded-lg bg-gray-900 px-4 py-3 text-sm font-medium text-white">
+                    {uploadingImage === "logo"
+                      ? "Uploading..."
+                      : "Upload Logo"}
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp"
+                      className="hidden"
+                      disabled={uploadingImage !== null}
+                      onChange={async (event) => {
+                        const file = event.target.files?.[0];
+                        if (!file) return;
+
+                        try {
+                          setUploadingImage("logo");
+                          const imageUrl = await uploadImage(file, "logo");
+                          updateField("logoUrl", imageUrl);
+                        } catch (error) {
+                          setError(
+                            axios.isAxiosError(error)
+                              ? error.response?.data?.message ??
+                                "Unable to upload logo."
+                              : "Unable to upload logo.",
+                          );
+                        } finally {
+                          setUploadingImage(null);
+                          event.target.value = "";
+                        }
+                      }}
+                    />
+                  </label>
+                </div>
+              </div>
 
               <ColorField
                 label="Primary Color"
@@ -840,80 +953,125 @@ export default function SettingsPage() {
             </div>
 
             <div className="mt-8">
-              <h3 className="font-medium">Promo Banner</h3>
+              <div className="flex items-center justify-between">
+                <h3 className="font-medium">Promo Banners</h3>
+                <button
+                  type="button"
+                  className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                  onClick={addPromoBanner}
+                >
+                  Add banner
+                </button>
+              </div>
 
-              <div className="mt-4 grid gap-4 md:grid-cols-2">
-                <label className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={settings.home.promoBanner.enabled}
-                    onChange={(event) =>
-                      updatePromoField("enabled", event.target.checked)
-                    }
-                  />
-                  Enabled
-                </label>
-
-                <div />
-
-                <TextField
-                  label="Title"
-                  value={settings.home.promoBanner.title}
-                  onChange={(value) => updatePromoField("title", value)}
-                />
-
-                <TextField
-                  label="Subtitle"
-                  value={settings.home.promoBanner.subtitle}
-                  onChange={(value) => updatePromoField("subtitle", value)}
-                />
-
-                <TextField
-                  label="Image URL"
-                  value={settings.home.promoBanner.imageUrl}
-                  onChange={(value) => updatePromoField("imageUrl", value)}
-                />
-
-                <label>
-                  <span className="text-sm font-medium text-gray-700">
-                    Action
-                  </span>
-
-                  <select
-                    className="mt-2 w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-gray-500"
-                    value={settings.home.promoBanner.actionType}
-                    onChange={(event) =>
-                      updatePromoField(
-                        "actionType",
-                        event.target.value as
-                          | "NONE"
-                          | "MODULE"
-                          | "CATEGORY",
-                      )
-                    }
+              <div className="mt-4 space-y-6">
+                {settings.home.promoBanners.map((banner, index) => (
+                  <div
+                    key={index}
+                    className="rounded-xl border border-gray-200 p-4"
                   >
-                    <option value="NONE">None</option>
-                    <option value="MODULE">Module</option>
-                    <option value="CATEGORY">Category</option>
-                  </select>
-                </label>
+                    <div className="mb-4 flex items-center justify-between">
+                      <h4 className="font-medium">Banner {index + 1}</h4>
+                      {settings.home.promoBanners.length > 1 && (
+                        <button
+                          type="button"
+                          className="text-sm text-red-600"
+                          onClick={() => removePromoBanner(index)}
+                        >
+                          Remove
+                        </button>
+                      )}
+                    </div>
 
-                {settings.home.promoBanner.actionType !== "NONE" && (
-                  <div className="md:col-span-2">
-                    <TextField
-                      label="Action Value"
-                      value={settings.home.promoBanner.actionValue}
-                      placeholder={
-                        settings.home.promoBanner.actionType === "MODULE"
-                          ? "food or grocery"
-                          : "food:Biryani or grocery:Vegetables"
-                      }
-                      onChange={(value) =>
-                        updatePromoField("actionValue", value)
-                      }
-                    />
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={banner.enabled}
+                          onChange={(event) =>
+                            updatePromoField(
+                              index,
+                              "enabled",
+                              event.target.checked,
+                            )
+                          }
+                        />
+                        Enabled
+                      </label>
+
+                      <div />
+
+                      <TextField
+                        label="Title"
+                        value={banner.title}
+                        onChange={(value) =>
+                          updatePromoField(index, "title", value)
+                        }
+                      />
+
+                      <TextField
+                        label="Subtitle"
+                        value={banner.subtitle}
+                        onChange={(value) =>
+                          updatePromoField(index, "subtitle", value)
+                        }
+                      />
+
+                      <BannerUpload
+                        index={index}
+                        banner={banner}
+                        uploadingImage={uploadingImage}
+                        setUploadingImage={setUploadingImage}
+                        uploadImage={uploadImage}
+                        onImageUrl={(value) =>
+                          updatePromoField(index, "imageUrl", value)
+                        }
+                        onError={setError}
+                      />
+
+                      <label>
+                        <span className="text-sm font-medium text-gray-700">
+                          Action
+                        </span>
+                        <select
+                          className="mt-2 w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-gray-500"
+                          value={banner.actionType}
+                          onChange={(event) =>
+                            updatePromoField(
+                              index,
+                              "actionType",
+                              event.target.value as
+                                | "NONE"
+                                | "MODULE"
+                                | "CATEGORY",
+                            )
+                          }
+                        >
+                          <option value="NONE">None</option>
+                          <option value="MODULE">Module</option>
+                          <option value="CATEGORY">Category</option>
+                        </select>
+                      </label>
+
+                      {banner.actionType !== "NONE" && (
+                        <div className="md:col-span-2">
+                          <TextField
+                            label="Action Value"
+                            value={banner.actionValue}
+                            placeholder={
+                              banner.actionType === "MODULE"
+                                ? "food or grocery"
+                                : "food:Biryani or grocery:Vegetables"
+                            }
+                            onChange={(value) =>
+                              updatePromoField(index, "actionValue", value)
+                            }
+                          />
+                        </div>
+                      )}
+                    </div>
                   </div>
-                )}
+                ))}
               </div>
             </div>
           </section>
@@ -952,6 +1110,73 @@ export default function SettingsPage() {
         </form>
       </div>
     </main>
+  );
+}
+
+function BannerUpload({
+  index,
+  banner,
+  uploadingImage,
+  setUploadingImage,
+  uploadImage,
+  onImageUrl,
+  onError,
+}: {
+  index: number;
+  banner: PromoBanner;
+  uploadingImage: string | null;
+  setUploadingImage: (value: string | null) => void;
+  uploadImage: (
+    file: File,
+    type: "logo" | "promo-banner",
+  ) => Promise<string>;
+  onImageUrl: (value: string) => void;
+  onError: (value: string) => void;
+}) {
+  const uploadKey = `banner-${index}`;
+
+  return (
+    <div className="md:col-span-2">
+      <p className="text-sm font-medium text-gray-700">Banner Image</p>
+
+      {banner.imageUrl && (
+        <img
+          src={banner.imageUrl}
+          alt=""
+          className="mt-2 h-40 w-full rounded-xl border object-cover"
+        />
+      )}
+
+      <label className="mt-3 inline-block cursor-pointer rounded-lg bg-gray-900 px-4 py-2 text-sm text-white">
+        {uploadingImage === uploadKey ? "Uploading..." : "Upload Banner"}
+        <input
+          type="file"
+          accept="image/png,image/jpeg,image/webp"
+          className="hidden"
+          disabled={uploadingImage !== null}
+          onChange={async (event) => {
+            const file = event.target.files?.[0];
+            if (!file) return;
+
+            try {
+              setUploadingImage(uploadKey);
+              const imageUrl = await uploadImage(file, "promo-banner");
+              onImageUrl(imageUrl);
+            } catch (error) {
+              onError(
+                axios.isAxiosError(error)
+                  ? error.response?.data?.message ??
+                    "Unable to upload banner."
+                  : "Unable to upload banner.",
+              );
+            } finally {
+              setUploadingImage(null);
+              event.target.value = "";
+            }
+          }}
+        />
+      </label>
+    </div>
   );
 }
 

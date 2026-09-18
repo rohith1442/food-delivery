@@ -109,12 +109,24 @@ class HomeConfig {
         .where((section) => section.id.isNotEmpty)
         .toList();
 
-    final bannerList = (json['promoBanners'] as List<dynamic>?)
-        ?.whereType<Map>()
-        .map(
-          (item) => PromoBannerConfig.fromJson(Map<String, dynamic>.from(item)),
-        )
-        .toList();
+    List<PromoBannerConfig>? bannerList;
+
+    if (json['promoBanners'] is List) {
+      bannerList = (json['promoBanners'] as List<dynamic>)
+          .whereType<Map>()
+          .map(
+            (item) => PromoBannerConfig.fromJson(
+              Map<String, dynamic>.from(item),
+            ),
+          )
+          .toList();
+    } else if (json['promoBanner'] is Map) {
+      bannerList = [
+        PromoBannerConfig.fromJson(
+          Map<String, dynamic>.from(json['promoBanner'] as Map),
+        ),
+      ];
+    }
 
     return HomeConfig(
       enabledModules: modules ?? fallback.enabledModules,

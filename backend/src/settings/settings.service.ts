@@ -44,6 +44,14 @@ interface GlobalSettings {
       enabled: boolean;
       sortOrder: number;
     }>;
+    promoBanners?: Array<{
+      enabled?: boolean;
+      title?: string;
+      subtitle?: string;
+      imageUrl?: string;
+      actionType?: 'NONE' | 'MODULE' | 'CATEGORY';
+      actionValue?: string;
+    }>;
     promoBanner?: {
       enabled?: boolean;
       title?: string;
@@ -145,6 +153,24 @@ export class SettingsService {
       settlement: { merchantEnabled: false, riderPayoutEnabled: false, riderPayoutFrequency: 'WEEKLY' },
     };
 
+    const rawBanners = Array.isArray(settings.home?.promoBanners)
+      ? settings.home!.promoBanners
+      : settings.home?.promoBanner
+        ? [settings.home.promoBanner]
+        : [];
+
+    const promoBanners = rawBanners.slice(0, 5).map((banner) => ({
+      enabled: banner.enabled !== false,
+      title: banner.title?.trim() ?? 'Fresh deals for you',
+      subtitle: banner.subtitle?.trim() ?? 'Order your favourites today',
+      imageUrl: banner.imageUrl?.trim() ?? '',
+      actionType:
+        banner.actionType === 'MODULE' || banner.actionType === 'CATEGORY'
+          ? banner.actionType
+          : 'NONE' as const,
+      actionValue: banner.actionValue?.trim() ?? '',
+    }));
+
     const home = {
       enabledModules:
         settings.home?.enabledModules ?? [
@@ -174,26 +200,26 @@ export class SettingsService {
             sortOrder: 4,
           },
         ],
-      promoBanner: {
-        enabled:
-          settings.home?.promoBanner?.enabled ??
-          true,
-        title:
-          settings.home?.promoBanner?.title ??
-          'Fresh deals for you',
-        subtitle:
-          settings.home?.promoBanner?.subtitle ??
-          'Order your favourites today',
-        imageUrl:
-          settings.home?.promoBanner?.imageUrl ??
-          '',
-        actionType:
-          settings.home?.promoBanner?.actionType ??
-          'NONE',
-        actionValue:
-          settings.home?.promoBanner?.actionValue ??
-          '',
-      },
+      promoBanners: promoBanners.length > 0
+        ? promoBanners
+        : [
+            {
+              enabled: true,
+              title: 'Fresh deals for you',
+              subtitle: 'Order your favourites today',
+              imageUrl: '',
+              actionType: 'NONE' as const,
+              actionValue: '',
+            },
+            {
+              enabled: true,
+              title: 'Groceries delivered fast',
+              subtitle: 'Daily essentials at your doorstep',
+              imageUrl: '',
+              actionType: 'MODULE' as const,
+              actionValue: 'grocery',
+            },
+          ],
     };
 
     switch (appType) {

@@ -110,15 +110,21 @@ interface GlobalSettingsDocument {
       enabled: boolean;
       sortOrder: number;
     }>;
+    promoBanners?: Array<{
+      enabled?: boolean;
+      title?: string;
+      subtitle?: string;
+      imageUrl?: string;
+      actionType?: 'NONE' | 'MODULE' | 'CATEGORY';
+      actionValue?: string;
+    }>;
+    /** Legacy Firestore shape accepted during migration. */
     promoBanner?: {
       enabled?: boolean;
       title?: string;
       subtitle?: string;
       imageUrl?: string;
-      actionType?:
-        | 'NONE'
-        | 'MODULE'
-        | 'CATEGORY';
+      actionType?: 'NONE' | 'MODULE' | 'CATEGORY';
       actionValue?: string;
     };
   };
@@ -952,6 +958,66 @@ export class AdminService {
       path: fileName,
     };
   }
+  async uploadSettingsImage(
+    type: string,
+    file: Express.Multer.File,
+  ) {
+    const allowedTypes = ['logo', 'promo-banner'];
+    const normalizedType = type?.trim().toLowerCase();
+
+    if (!allowedTypes.includes(normalizedType)) {
+      throw new BadRequestException('Unsupported settings image type');
+    }
+
+    if (!file) {
+      throw new BadRequestException('Image file is required');
+    }
+
+    const allowedMimeTypes = [
+      'image/jpeg',
+      'image/png',
+      'image/webp',
+    ];
+
+    if (!allowedMimeTypes.includes(file.mimetype)) {
+      throw new BadRequestException(
+        'Only JPG, PNG and WEBP images are allowed',
+      );
+    }
+
+    const extension =
+      file.mimetype === 'image/png'
+        ? 'png'
+        : file.mimetype === 'image/webp'
+          ? 'webp'
+          : 'jpg';
+    const fileName =
+      `settings/${normalizedType}/${randomUUID()}.${extension}`;
+    const bucket = this.firebaseService.getStorage().bucket();
+    const storageFile = bucket.file(fileName);
+    const downloadToken = randomUUID();
+
+    await storageFile.save(file.buffer, {
+      metadata: {
+        contentType: file.mimetype,
+        metadata: {
+          firebaseStorageDownloadTokens: downloadToken,
+        },
+      },
+      resumable: false,
+    });
+
+    const encodedPath = encodeURIComponent(fileName);
+    const imageUrl =
+      `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodedPath}?alt=media&token=${downloadToken}`;
+
+    return {
+      success: true,
+      imageUrl,
+      path: fileName,
+    };
+  }
+
   async getDashboard() {
     const db = this.firebaseService.getFirestore();
 
@@ -1256,25 +1322,48 @@ export class AdminService {
                 : 1,
           })) ?? [];
 
-      const promoBanner = data.home.promoBanner ?? {};
+      const rawBanners = Array.isArray(data.home.promoBanners)
+        ? data.home.promoBanners
+        : data.home.promoBanner
+          ? [data.home.promoBanner]
+          : [];
+
+      const promoBanners = rawBanners.slice(0, 5).map((banner) => ({
+        enabled: banner.enabled !== false,
+        title: banner.title?.trim() ?? 'Fresh deals for you',
+        subtitle:
+          banner.subtitle?.trim() ?? 'Order your favourites today',
+        imageUrl: banner.imageUrl?.trim() ?? '',
+        actionType:
+          banner.actionType === 'MODULE' || banner.actionType === 'CATEGORY'
+            ? banner.actionType
+            : 'NONE' as const,
+        actionValue: banner.actionValue?.trim() ?? '',
+      }));
 
       updates.home = {
         enabledModules,
         sections,
-        promoBanner: {
-          enabled: promoBanner.enabled !== false,
-          title: promoBanner.title?.trim() ?? 'Fresh deals for you',
-          subtitle:
-            promoBanner.subtitle?.trim() ??
-            'Order your favourites today',
-          imageUrl: promoBanner.imageUrl?.trim() ?? '',
-          actionType:
-            promoBanner.actionType === 'MODULE' ||
-            promoBanner.actionType === 'CATEGORY'
-              ? promoBanner.actionType
-              : 'NONE',
-          actionValue: promoBanner.actionValue?.trim() ?? '',
-        },
+        promoBanners: promoBanners.length > 0
+          ? promoBanners
+          : [
+              {
+                enabled: true,
+                title: 'Fresh deals for you',
+                subtitle: 'Order your favourites today',
+                imageUrl: '',
+                actionType: 'NONE' as const,
+                actionValue: '',
+              },
+              {
+                enabled: true,
+                title: 'Groceries delivered fast',
+                subtitle: 'Daily essentials at your doorstep',
+                imageUrl: '',
+                actionType: 'MODULE' as const,
+                actionValue: 'grocery',
+              },
+            ],
       };
     }
 

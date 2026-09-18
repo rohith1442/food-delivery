@@ -179,6 +179,21 @@ async updateZone(
     return this.adminService.uploadModuleImage(moduleId, file);
   }
 
+  @Post('settings/image')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: {
+        fileSize: 5 * 1024 * 1024,
+      },
+    }),
+  )
+  async uploadSettingsImage(
+    @Query('type') type: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    return this.adminService.uploadSettingsImage(type, file);
+  }
+
   @Get('dashboard')
   async getDashboard() {
     return this.adminService.getDashboard();
@@ -233,15 +248,20 @@ async updateSettings(
         enabled: boolean;
         sortOrder: number;
       }>;
+      promoBanners?: Array<{
+        enabled?: boolean;
+        title?: string;
+        subtitle?: string;
+        imageUrl?: string;
+        actionType?: 'NONE' | 'MODULE' | 'CATEGORY';
+        actionValue?: string;
+      }>;
       promoBanner?: {
         enabled?: boolean;
         title?: string;
         subtitle?: string;
         imageUrl?: string;
-        actionType?:
-          | 'NONE'
-          | 'MODULE'
-          | 'CATEGORY';
+        actionType?: 'NONE' | 'MODULE' | 'CATEGORY';
         actionValue?: string;
       };
     };
