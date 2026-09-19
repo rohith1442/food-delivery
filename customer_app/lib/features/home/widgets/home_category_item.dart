@@ -27,29 +27,43 @@ class HomeCategoryItem extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 4),
           child: Column(
             children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(18),
-                child: Container(
-                  width: 68,
-                  height: 68,
-                  color: primary.withValues(alpha: 0.09),
-                  child: imageUrl != null && imageUrl.isNotEmpty
-                      ? Image.network(
-                          imageUrl,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) {
-                            return Icon(
-                              _getIcon(name, moduleId),
-                              color: primary,
-                              size: 30,
-                            );
-                          },
-                        )
-                      : Icon(
-                          _getIcon(name, moduleId),
-                          color: primary,
-                          size: 30,
-                        ),
+              Container(
+                width: 68,
+                height: 68,
+                padding: const EdgeInsets.all(1),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: Colors.grey.shade200),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.04),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(17),
+                  child: Container(
+                    color: primary.withValues(alpha: 0.09),
+                    child: imageUrl != null && imageUrl.isNotEmpty
+                        ? Image.network(
+                            imageUrl,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Icon(
+                                _getIcon(name, moduleId),
+                                color: primary,
+                                size: 30,
+                              );
+                            },
+                          )
+                        : Icon(
+                            _getIcon(name, moduleId),
+                            color: primary,
+                            size: 30,
+                          ),
+                  ),
                 ),
               ),
               const SizedBox(height: 8),

@@ -214,17 +214,6 @@ class _MenuPageState extends ConsumerState<MenuPage> {
                     Expanded(child: Text(widget.storeAddress)),
                   ],
                 ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    const Icon(Icons.schedule_outlined, size: 18),
-                    const SizedBox(width: 6),
-                    Text(
-                      '25–35 min',
-                      style: TextStyle(color: Colors.grey.shade700),
-                    ),
-                  ],
-                ),
               ],
             ),
           ),

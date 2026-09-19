@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/config/app_branding.dart';
+
 class PromoBanner extends StatelessWidget {
   const PromoBanner({
     super.key,
@@ -69,9 +71,17 @@ class PromoBanner extends StatelessWidget {
   }
 
   Widget _fallbackBackground() {
+    final branding = AppBrandingController.instance.branding;
+
     return Container(
-      color: Colors.blueGrey.shade500,
-      child: const Icon(Icons.delivery_dining, size: 48, color: Colors.white),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [branding.primary, branding.secondary],
+        ),
+      ),
+      child: const Center(
+        child: Icon(Icons.delivery_dining, size: 48, color: Colors.white),
+      ),
     );
   }
 }
