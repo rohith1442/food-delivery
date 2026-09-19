@@ -5,6 +5,8 @@ class CustomerAddress {
     required this.id,
     required this.label,
     required this.address,
+    required this.contactName,
+    required this.contactPhone,
     required this.latitude,
     required this.longitude,
     required this.zoneId,
@@ -14,6 +16,8 @@ class CustomerAddress {
   final String id;
   final String label;
   final String address;
+  final String contactName;
+  final String contactPhone;
   final double latitude;
   final double longitude;
   final String zoneId;
@@ -24,6 +28,8 @@ class CustomerAddress {
       id: json['id']?.toString() ?? '',
       label: json['label']?.toString() ?? 'Home',
       address: json['address']?.toString() ?? '',
+      contactName: json['contactName']?.toString() ?? '',
+      contactPhone: json['contactPhone']?.toString() ?? '',
       latitude: _toDouble(json['latitude']),
       longitude: _toDouble(json['longitude']),
       zoneId: json['zoneId']?.toString() ?? '',
@@ -79,6 +85,8 @@ class AddressesApiService {
     required String address,
     required double latitude,
     required double longitude,
+    required String contactName,
+    required String contactPhone,
     String label = 'Home',
   }) async {
     final response = await _apiClient.post(
@@ -86,6 +94,8 @@ class AddressesApiService {
       data: {
         'label': label,
         'address': address,
+        'contactName': contactName.trim(),
+        'contactPhone': contactPhone.trim(),
         'latitude': latitude,
         'longitude': longitude,
       },

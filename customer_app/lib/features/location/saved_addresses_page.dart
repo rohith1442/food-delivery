@@ -123,9 +123,9 @@ class _SavedAddressesPageState extends State<SavedAddressesPage> {
       return;
     }
 
-    final label = await _chooseLabel();
+    final details = await _showAddressDetails();
 
-    if (label == null || !mounted) {
+    if (details == null || !mounted) {
       return;
     }
 
@@ -135,7 +135,9 @@ class _SavedAddressesPageState extends State<SavedAddressesPage> {
 
     try {
       final savedAddress = await _addressesApiService.createAddress(
-        label: label,
+        label: details['label']!,
+        contactName: details['name']!,
+        contactPhone: details['phone']!,
         address: address,
         latitude: latitude,
         longitude: longitude,
@@ -172,44 +174,88 @@ class _SavedAddressesPageState extends State<SavedAddressesPage> {
     }
   }
 
-  Future<String?> _chooseLabel() {
-    return showModalBottomSheet<String>(
+  Future<Map<String, String>?> _showAddressDetails() {
+    final nameController = TextEditingController();
+    final phoneController = TextEditingController();
+    var label = 'Home';
+
+    return showModalBottomSheet<Map<String, String>>(
       context: context,
+      isScrollControlled: true,
       showDragHandle: true,
       builder: (context) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+        return StatefulBuilder(
+          builder: (context, setModalState) => Padding(
+            padding: EdgeInsets.fromLTRB(
+              20,
+              0,
+              20,
+              MediaQuery.of(context).viewInsets.bottom + 20,
+            ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Save address as',
+                  'Save delivery address',
                   style: Theme.of(context).textTheme.titleLarge
                       ?.copyWith(fontWeight: FontWeight.bold),
                 ),
-                const SizedBox(height: 16),
-                _LabelTile(
-                  icon: Icons.home_outlined,
-                  title: 'Home',
-                  onTap: () {
-                    Navigator.of(context).pop('Home');
+                const SizedBox(height: 20),
+                TextField(
+                  controller: nameController,
+                  textCapitalization: TextCapitalization.words,
+                  decoration: const InputDecoration(labelText: 'Contact name'),
+                ),
+                const SizedBox(height: 14),
+                TextField(
+                  controller: phoneController,
+                  keyboardType: TextInputType.phone,
+                  maxLength: 10,
+                  decoration: const InputDecoration(
+                    labelText: 'Phone number',
+                    prefixText: '+91 ',
+                    counterText: '',
+                  ),
+                ),
+                const SizedBox(height: 18),
+                SegmentedButton<String>(
+                  segments: const [
+                    ButtonSegment(
+                      value: 'Home',
+                      label: Text('Home'),
+                      icon: Icon(Icons.home_outlined),
+                    ),
+                    ButtonSegment(
+                      value: 'Work',
+                      label: Text('Work'),
+                      icon: Icon(Icons.work_outline),
+                    ),
+                    ButtonSegment(
+                      value: 'Other',
+                      label: Text('Other'),
+                      icon: Icon(Icons.location_on_outlined),
+                    ),
+                  ],
+                  selected: {label},
+                  onSelectionChanged: (values) {
+                    setModalState(() => label = values.first);
                   },
                 ),
-                _LabelTile(
-                  icon: Icons.work_outline,
-                  title: 'Work',
-                  onTap: () {
-                    Navigator.of(context).pop('Work');
-                  },
-                ),
-                _LabelTile(
-                  icon: Icons.location_on_outlined,
-                  title: 'Other',
-                  onTap: () {
-                    Navigator.of(context).pop('Other');
-                  },
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: FilledButton(
+                    onPressed: () {
+                      final name = nameController.text.trim();
+                      final phone = phoneController.text.trim();
+                      if (name.isEmpty || phone.length != 10) return;
+                      Navigator.of(context)
+                          .pop({'name': name, 'phone': phone, 'label': label});
+                    },
+                    child: const Text('Save Address'),
+                  ),
                 ),
               ],
             ),
@@ -472,29 +518,6 @@ class _SavedAddressesPageState extends State<SavedAddressesPage> {
             ),
         ],
       ),
-    );
-  }
-}
-
-class _LabelTile extends StatelessWidget {
-  const _LabelTile({
-    required this.icon,
-    required this.title,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String title;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      leading: CircleAvatar(child: Icon(icon)),
-      title: Text(title),
-      trailing: const Icon(Icons.chevron_right),
-      onTap: onTap,
     );
   }
 }

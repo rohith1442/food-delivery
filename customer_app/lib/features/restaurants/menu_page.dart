@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/config/app_branding.dart';
 import '../cart/cart_provider.dart';
 import '../cart/widgets/cart_floating_bar.dart';
 import '../products/product_details_page.dart';
@@ -338,6 +339,8 @@ class _MenuPageState extends ConsumerState<MenuPage> {
   }
 
   Widget _buildProducts() {
+    final currency = AppBrandingController.instance.branding.currencySymbol;
+
     if (_loading) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -461,7 +464,7 @@ class _MenuPageState extends ConsumerState<MenuPage> {
                         ],
                         const SizedBox(height: 12),
                         Text(
-                          '₹$price',
+                          '$currency$price',
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w800,

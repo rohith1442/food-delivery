@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
 
 import '../../core/config/app_branding.dart';
@@ -228,6 +229,9 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
 
       final total = response['total'];
       final branding = AppBrandingController.instance.branding;
+      final firebaseUser = FirebaseAuth.instance.currentUser;
+      final contact = firebaseUser?.phoneNumber ?? '';
+      final email = firebaseUser?.email ?? '';
 
       if (paymentId == null ||
           paymentId.isEmpty ||
@@ -261,6 +265,10 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
         'name': branding.appName,
 
         'description': 'Order Payment',
+        'prefill': {
+          if (contact.isNotEmpty) 'contact': contact,
+          if (email.isNotEmpty) 'email': email,
+        },
 
         'retry': {'enabled': true, 'max_count': 1},
 

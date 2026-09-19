@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/config/app_branding.dart';
 import '../cart/cart_page.dart';
 import '../cart/cart_provider.dart';
 import '../cart/widgets/cart_floating_bar.dart';
@@ -32,6 +33,7 @@ class ProductDetailsPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final cart = ref.watch(cartProvider);
     final cartNotifier = ref.read(cartProvider.notifier);
+    final currency = AppBrandingController.instance.branding.currencySymbol;
 
     CartItem? existingItem;
 
@@ -107,7 +109,7 @@ class ProductDetailsPage extends ConsumerWidget {
                         const SizedBox(height: 12),
 
                         Text(
-                          '₹$price',
+                          '$currency$price',
                           style: Theme.of(context).textTheme.titleLarge
                               ?.copyWith(fontWeight: FontWeight.bold),
                         ),

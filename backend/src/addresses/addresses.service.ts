@@ -13,6 +13,8 @@ interface CreateAddressRequest {
   address: string;
   latitude: number;
   longitude: number;
+  contactName?: string;
+  contactPhone?: string;
 }
 
 interface UpdateAddressRequest {
@@ -27,6 +29,8 @@ export interface AddressDocument {
   userId: string;
   label: string;
   address: string;
+  contactName: string;
+  contactPhone: string;
   latitude: number;
   longitude: number;
   zoneId: string;
@@ -116,6 +120,8 @@ export class AddressesService {
       userId,
       label: data.label?.trim() || 'Home',
       address: data.address.trim(),
+      contactName: data.contactName?.trim() ?? '',
+      contactPhone: data.contactPhone?.trim() ?? '',
       latitude: data.latitude,
       longitude: data.longitude,
       zoneId: resolution.zone.id,
