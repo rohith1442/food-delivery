@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -175,8 +176,10 @@ class _SavedAddressesPageState extends State<SavedAddressesPage> {
   }
 
   Future<Map<String, String>?> _showAddressDetails() {
+    final firebaseUser = FirebaseAuth.instance.currentUser;
+    final phone = firebaseUser?.phoneNumber?.replaceFirst('+91', '') ?? '';
     final nameController = TextEditingController();
-    final phoneController = TextEditingController();
+    final phoneController = TextEditingController(text: phone);
     var label = 'Home';
 
     return showModalBottomSheet<Map<String, String>>(
