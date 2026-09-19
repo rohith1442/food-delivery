@@ -201,16 +201,21 @@ class _SearchPageState extends State<SearchPage> {
       appBar: AppBar(title: const Text('Search')),
       body: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+          Container(
+            margin: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surfaceContainerLowest,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: Colors.grey.shade200),
+            ),
             child: TextField(
               controller: _searchController,
               autofocus: true,
               textInputAction: TextInputAction.search,
               onChanged: _onSearchChanged,
               decoration: InputDecoration(
-                hintText: 'Search stores, categories or products',
-                prefixIcon: const Icon(Icons.search),
+                hintText: 'Search food, stores or groceries',
+                prefixIcon: const Icon(Icons.search_rounded),
                 suffixIcon: query.isNotEmpty
                     ? IconButton(
                         onPressed: () {
@@ -218,12 +223,11 @@ class _SearchPageState extends State<SearchPage> {
                           _searchController.clear();
                           _onSearchChanged('');
                         },
-                        icon: const Icon(Icons.close),
+                        icon: const Icon(Icons.close_rounded),
                       )
                     : null,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(vertical: 16),
               ),
             ),
           ),
@@ -370,35 +374,67 @@ class _ProductResult extends StatelessWidget {
     final price = product['price'];
     final isOpen = product['storeIsOpen'] == true;
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 10),
-      child: ListTile(
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: InkWell(
         onTap: onTap,
-        leading: ClipRRect(
-          borderRadius: BorderRadius.circular(10),
-          child: SizedBox(
-            width: 58,
-            height: 58,
-            child: imageUrl.isNotEmpty
-                ? Image.network(
-                    imageUrl,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, _, _) =>
-                        const Icon(Icons.fastfood_outlined),
-                  )
-                : const Icon(Icons.fastfood_outlined),
-          ),
-        ),
-        title: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis),
-        subtitle: Text(
-          [
-            if (storeName.isNotEmpty) storeName,
-            if (!isOpen) 'Closed',
-          ].join(' • '),
-        ),
-        trailing: Text(
-          '$currencySymbol${price ?? ''}',
-          style: const TextStyle(fontWeight: FontWeight.bold),
+        borderRadius: BorderRadius.circular(16),
+        child: Row(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: SizedBox(
+                width: 72,
+                height: 72,
+                child: imageUrl.isNotEmpty
+                    ? Image.network(
+                        imageUrl,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, _, _) =>
+                            const Icon(Icons.fastfood_outlined),
+                      )
+                    : const Icon(Icons.fastfood_outlined),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  if (storeName.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      storeName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(color: Colors.grey.shade600),
+                    ),
+                  ],
+                  if (!isOpen)
+                    Text(
+                      'Closed',
+                      style: TextStyle(color: Colors.red.shade700),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              '$currencySymbol${price ?? ''}',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ],
         ),
       ),
     );

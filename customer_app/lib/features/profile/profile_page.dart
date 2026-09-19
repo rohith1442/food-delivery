@@ -136,7 +136,12 @@ class _ProfilePageState extends State<ProfilePage> {
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primaryContainer,
+                gradient: LinearGradient(
+                  colors: [
+                    Theme.of(context).colorScheme.primary,
+                    Theme.of(context).colorScheme.secondary,
+                  ],
+                ),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Row(
@@ -161,13 +166,17 @@ class _ProfilePageState extends State<ProfilePage> {
                         Text(
                           name.isNotEmpty ? name : 'Customer',
                           style: Theme.of(context).textTheme.titleLarge
-                              ?.copyWith(fontWeight: FontWeight.bold),
+                              ?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
                         ),
                         if (phone.isNotEmpty) ...[
                           const SizedBox(height: 4),
                           Text(
                             phone,
-                            style: Theme.of(context).textTheme.bodyMedium,
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(color: Colors.white),
                           ),
                         ],
                       ],
@@ -175,6 +184,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   ),
                   IconButton(
                     tooltip: 'Edit profile',
+                    color: Colors.white,
                     icon: const Icon(Icons.edit_outlined),
                     onPressed: () => _showEditProfile(name),
                   ),
@@ -182,6 +192,7 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
             ),
             const SizedBox(height: 24),
+            _sectionLabel('Account'),
             _ProfileTile(
               icon: Icons.location_on_outlined,
               title: 'Saved Addresses',
@@ -209,6 +220,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 ).push(MaterialPageRoute(builder: (_) => const OrdersPage()));
               },
             ),
+            _sectionLabel('Support'),
             _ProfileTile(
               icon: Icons.support_agent_outlined,
               title: 'Help & Support',
@@ -263,6 +275,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
               ),
             ),
+            _sectionLabel('App'),
             _ProfileTile(
               icon: Icons.info_outline,
               title: 'About Us',
@@ -302,6 +315,20 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
             const SizedBox(height: 32),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _sectionLabel(String title) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 8, bottom: 10),
+      child: Text(
+        title,
+        style: TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w700,
+          color: Colors.grey.shade600,
         ),
       ),
     );
@@ -421,8 +448,13 @@ class _ProfileTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = danger ? Colors.red : null;
 
-    return Card(
+    return Container(
       margin: const EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
       child: ListTile(
         leading: Icon(icon, color: color),
         title: Text(

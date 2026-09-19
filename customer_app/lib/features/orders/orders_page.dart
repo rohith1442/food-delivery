@@ -152,9 +152,27 @@ class _OrdersPageState extends State<OrdersPage> {
       return RefreshIndicator(
         onRefresh: _loadOrders,
         child: ListView(
-          children: const [
-            SizedBox(height: 180),
-            Center(child: Text('No orders yet')),
+          children: [
+            const SizedBox(height: 180),
+            Column(
+              children: [
+                Icon(Icons.receipt_long_outlined, size: 64),
+                const SizedBox(height: 16),
+                const Text(
+                  'No orders yet',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 8),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 32),
+                  child: Text(
+                    'Your completed and active orders will appear here.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.grey.shade600),
+                  ),
+                ),
+              ],
+            ),
           ],
         ),
       );
@@ -169,6 +187,9 @@ class _OrdersPageState extends State<OrdersPage> {
           final order = _orders[index];
 
           final orderId = order['id']?.toString() ?? '';
+          final shortOrderId = orderId.length > 8
+              ? orderId.substring(0, 8)
+              : orderId;
 
           final total = order['total']?.toString() ?? '0';
           final currency =
@@ -180,9 +201,15 @@ class _OrdersPageState extends State<OrdersPage> {
 
           final date = _formatDate(order['createdAt']);
 
-          return Card(
-            margin: const EdgeInsets.only(bottom: 12),
+          return Container(
+            margin: const EdgeInsets.only(bottom: 16),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surface,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: Colors.grey.shade200),
+            ),
             child: InkWell(
+              borderRadius: BorderRadius.circular(18),
               onTap: () {
                 Navigator.of(context).push(
                   MaterialPageRoute(
@@ -190,7 +217,6 @@ class _OrdersPageState extends State<OrdersPage> {
                   ),
                 );
               },
-              borderRadius: BorderRadius.circular(12),
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Column(
@@ -199,13 +225,13 @@ class _OrdersPageState extends State<OrdersPage> {
                     Row(
                       children: [
                         Container(
-                          width: 48,
-                          height: 48,
+                          width: 52,
+                          height: 52,
                           decoration: BoxDecoration(
                             color: Theme.of(context)
                                 .colorScheme
                                 .primaryContainer,
-                            borderRadius: BorderRadius.circular(10),
+                            borderRadius: BorderRadius.circular(14),
                           ),
                           child: Icon(
                             Icons.restaurant,
@@ -217,8 +243,8 @@ class _OrdersPageState extends State<OrdersPage> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text(
-                                'Food Order',
+                              Text(
+                                order['storeName']?.toString() ?? 'Order',
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 16,
@@ -226,7 +252,7 @@ class _OrdersPageState extends State<OrdersPage> {
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                orderId,
+                                '#$shortOrderId',
                                 style: TextStyle(
                                   fontSize: 12,
                                   color: Theme.of(context)

@@ -158,23 +158,42 @@ class _CustomerNotificationsPageState extends State<CustomerNotificationsPage> {
           itemBuilder: (context, index) {
             final item = _items[index];
             final isUnread = item['isRead'] != true;
-            return Card(
-              color: isUnread
-                  ? Theme.of(context).colorScheme.primaryContainer
-                  : null,
+            return Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              decoration: BoxDecoration(
+                color: isUnread
+                    ? Theme.of(context).colorScheme.primary
+                          .withValues(alpha: 0.06)
+                    : Theme.of(context).colorScheme.surface,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: isUnread
+                      ? Theme.of(context).colorScheme.primary
+                      : Colors.grey.shade200,
+                ),
+              ),
               child: ListTile(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
                 onTap: () => _open(item),
                 leading: CircleAvatar(child: Icon(_icon(item))),
                 title: Text(
                   item['title']?.toString() ?? 'Notification',
                   style: TextStyle(
-                    fontWeight: isUnread ? FontWeight.bold : FontWeight.w600,
+                    fontWeight: isUnread ? FontWeight.w700 : FontWeight.w600,
                   ),
                 ),
                 subtitle: Text(
                   '${item['body']?.toString() ?? ''}\n${_date(item['createdAt'])}',
                 ),
-                trailing: isUnread ? const Icon(Icons.circle, size: 10) : null,
+                trailing: isUnread
+                    ? Icon(
+                        Icons.circle,
+                        size: 9,
+                        color: Theme.of(context).colorScheme.primary,
+                      )
+                    : null,
               ),
             );
           },

@@ -355,10 +355,18 @@ class _SavedAddressesPageState extends State<SavedAddressesPage> {
                         ),
 
                       for (final address in _addresses)
-                        Card(
+                        Container(
                           margin: const EdgeInsets.only(bottom: 12),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(18),
+                            border: Border.all(
+                              color: address.isDefault
+                                  ? Theme.of(context).colorScheme.primary
+                                  : Colors.grey.shade200,
+                            ),
+                          ),
                           child: InkWell(
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(18),
                             onTap: () {
                               _selectAddress(address);
                             },
@@ -368,6 +376,12 @@ class _SavedAddressesPageState extends State<SavedAddressesPage> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   CircleAvatar(
+                                    backgroundColor: Theme.of(context)
+                                        .colorScheme
+                                        .primaryContainer,
+                                    foregroundColor: Theme.of(context)
+                                        .colorScheme
+                                        .primary,
                                     child: Icon(_getAddressIcon(address.label)),
                                   ),
                                   const SizedBox(width: 14),
@@ -396,7 +410,8 @@ class _SavedAddressesPageState extends State<SavedAddressesPage> {
                                                 decoration: BoxDecoration(
                                                   color: Theme.of(context)
                                                       .colorScheme
-                                                      .primaryContainer,
+                                                      .primary
+                                                      .withValues(alpha: 0.1),
                                                   borderRadius:
                                                       BorderRadius.circular(20),
                                                 ),

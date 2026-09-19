@@ -34,8 +34,23 @@ class CartPage extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Cart')),
       body: items.isEmpty
-          ? const Center(
-              child: Text('Your cart is empty', style: TextStyle(fontSize: 18)),
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.shopping_bag_outlined, size: 72),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Your cart is empty',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Add something delicious to get started.',
+                    style: TextStyle(color: Colors.grey.shade600),
+                  ),
+                ],
+              ),
             )
           : Column(
               children: [
@@ -48,94 +63,106 @@ class CartPage extends ConsumerWidget {
 
                       final maxReached = item.quantity >= item.availableStock;
 
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        child: Padding(
-                          padding: const EdgeInsets.all(12),
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 64,
-                                height: 64,
-                                decoration: BoxDecoration(
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .primaryContainer,
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: Icon(
-                                  Icons.fastfood,
-                                  color: Theme.of(context).colorScheme.primary,
-                                ),
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 14),
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.surface,
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(color: Colors.grey.shade200),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 64,
+                              height: 64,
+                              decoration: BoxDecoration(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .primaryContainer,
+                                borderRadius: BorderRadius.circular(10),
                               ),
-
-                              const SizedBox(width: 12),
-
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      item.name,
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-
-                                    const SizedBox(height: 6),
-
-                                    Text('₹${item.price}'),
-
-                                    const SizedBox(height: 4),
-
-                                    Text(
-                                      item.availableStock <= 5
-                                          ? 'Only ${item.availableStock} left'
-                                          : 'In stock',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: item.availableStock > 0
-                                            ? Colors.green
-                                            : Colors.red,
-                                      ),
-                                    ),
-
-                                    if (maxReached)
-                                      Padding(
-                                        padding: const EdgeInsets.only(top: 4),
-                                        child: Text(
-                                          'Maximum available quantity reached',
-                                          style: Theme.of(context)
-                                              .textTheme
-                                              .bodySmall
-                                              ?.copyWith(
-                                                color: Theme.of(context)
-                                                    .colorScheme
-                                                    .error,
-                                              ),
-                                        ),
-                                      ),
-                                  ],
-                                ),
+                              child: Icon(
+                                Icons.fastfood,
+                                color: Theme.of(context).colorScheme.primary,
                               ),
+                            ),
 
-                              Row(
+                            const SizedBox(width: 12),
+
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  IconButton(
-                                    onPressed: () {
-                                      cartNotifier.decreaseQuantity(item.id);
-                                    },
-                                    icon: const Icon(
-                                      Icons.remove_circle_outline,
-                                    ),
-                                  ),
                                   Text(
-                                    '${item.quantity}',
+                                    item.name,
                                     style: const TextStyle(
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
+
+                                  const SizedBox(height: 6),
+
+                                  Text('₹${item.price}'),
+
+                                  const SizedBox(height: 4),
+
+                                  Text(
+                                    item.availableStock <= 5
+                                        ? 'Only ${item.availableStock} left'
+                                        : 'In stock',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: item.availableStock > 0
+                                          ? Colors.green
+                                          : Colors.red,
+                                    ),
+                                  ),
+
+                                  if (maxReached)
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 4),
+                                      child: Text(
+                                        'Maximum available quantity reached',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodySmall
+                                            ?.copyWith(
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .error,
+                                            ),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+
+                            Container(
+                              decoration: BoxDecoration(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .primaryContainer,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
                                   IconButton(
+                                    visualDensity: VisualDensity.compact,
+                                    onPressed: () {
+                                      cartNotifier.decreaseQuantity(item.id);
+                                    },
+                                    icon: const Icon(Icons.remove_rounded),
+                                  ),
+                                  Text(
+                                    '${item.quantity}',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                  IconButton(
+                                    visualDensity: VisualDensity.compact,
                                     onPressed: maxReached
                                         ? null
                                         : () {
@@ -156,12 +183,12 @@ class CartPage extends ConsumerWidget {
                                               );
                                             }
                                           },
-                                    icon: const Icon(Icons.add_circle_outline),
+                                    icon: const Icon(Icons.add_rounded),
                                   ),
                                 ],
                               ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
                       );
                     },
@@ -173,8 +200,12 @@ class CartPage extends ConsumerWidget {
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
                       color: Theme.of(context).colorScheme.surface,
-                      boxShadow: const [
-                        BoxShadow(blurRadius: 8, offset: Offset(0, -2)),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.06),
+                          blurRadius: 18,
+                          offset: const Offset(0, -4),
+                        ),
                       ],
                     ),
                     child: Column(

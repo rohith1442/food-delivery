@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
 
+import '../../core/config/app_branding.dart';
 import '../cart/cart_provider.dart';
 import '../location/addresses_api_service.dart';
 import '../location/saved_addresses_page.dart';
@@ -226,6 +227,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       final currency = response['currency'] as String?;
 
       final total = response['total'];
+      final branding = AppBrandingController.instance.branding;
 
       if (paymentId == null ||
           paymentId.isEmpty ||
@@ -256,13 +258,13 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
 
         'order_id': razorpayOrderId,
 
-        'name': 'Food Delivery',
+        'name': branding.appName,
 
         'description': 'Order Payment',
 
         'retry': {'enabled': true, 'max_count': 1},
 
-        'theme': {'color': '#FF5722'},
+        'theme': {'color': branding.primaryColor},
       };
 
       debugPrint(
@@ -455,9 +457,14 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
 
           const SizedBox(height: 8),
 
-          Card(
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: Colors.grey.shade200),
+            ),
             child: ListTile(
-              contentPadding: const EdgeInsets.all(16),
+              contentPadding: EdgeInsets.zero,
               leading: Icon(
                 _getAddressIcon(selectedAddress.label),
                 color: Theme.of(context).colorScheme.primary,
@@ -480,48 +487,50 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
 
           const SizedBox(height: 8),
 
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  ...items.map(
-                    (item) => Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Text('${item.name} × ${item.quantity}'),
-                          ),
-                          Text(
-                            '₹${item.price * item.quantity}',
-                            style: const TextStyle(fontWeight: FontWeight.w600),
-                          ),
-                        ],
-                      ),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: Colors.grey.shade200),
+            ),
+            child: Column(
+              children: [
+                ...items.map(
+                  (item) => Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text('${item.name} × ${item.quantity}'),
+                        ),
+                        Text(
+                          '₹${item.price * item.quantity}',
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                      ],
                     ),
                   ),
+                ),
 
-                  const Divider(height: 20),
+                const Divider(height: 20),
 
-                  _SummaryRow(label: 'Subtotal', value: '₹${cart.subtotal}'),
+                _SummaryRow(label: 'Subtotal', value: '₹${cart.subtotal}'),
 
-                  const SizedBox(height: 8),
+                const SizedBox(height: 8),
 
-                  _SummaryRow(
-                    label: 'Delivery fee',
-                    value: '₹${cart.deliveryFee}',
-                  ),
+                _SummaryRow(
+                  label: 'Delivery fee',
+                  value: '₹${cart.deliveryFee}',
+                ),
 
-                  const Divider(height: 24),
+                const Divider(height: 24),
 
-                  _SummaryRow(
-                    label: 'Total',
-                    value: '₹${cart.total}',
-                    bold: true,
-                  ),
-                ],
-              ),
+                _SummaryRow(
+                  label: 'Total',
+                  value: '₹${cart.total}',
+                  bold: true,
+                ),
+              ],
             ),
           ),
 
@@ -531,7 +540,12 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
 
           const SizedBox(height: 8),
 
-          Card(
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 6),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: Colors.grey.shade200),
+            ),
             child: RadioGroup<String>(
               groupValue: paymentMethod,
               onChanged: (value) {
@@ -543,19 +557,25 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                   paymentMethod = value;
                 });
               },
-              child: const Column(
+              child: Column(
                 children: [
-                  RadioListTile<String>(
+                  const RadioListTile<String>(
                     value: 'Cash on Delivery',
-                    title: Text('Cash on Delivery'),
+                    title: Text(
+                      'Cash on Delivery',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
                     subtitle: Text('Pay when your order arrives'),
-                    secondary: Icon(Icons.money_outlined),
+                    secondary: Icon(Icons.payments_outlined),
                   ),
-                  RadioListTile<String>(
+                  const RadioListTile<String>(
                     value: 'Online Payment',
-                    title: Text('Online Payment'),
+                    title: Text(
+                      'Online Payment',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
                     subtitle: Text('UPI, Card, Net Banking'),
-                    secondary: Icon(Icons.payment_outlined),
+                    secondary: Icon(Icons.account_balance_wallet_outlined),
                   ),
                 ],
               ),
