@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/config/app_branding.dart';
 import '../checkout/checkout_page.dart';
 import '../location/addresses_api_service.dart';
 import '../location/saved_addresses_page.dart';
@@ -30,6 +31,7 @@ class CartPage extends ConsumerWidget {
     final items = cart.items;
 
     final cartNotifier = ref.read(cartProvider.notifier);
+    final currency = AppBrandingController.instance.branding.currencySymbol;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Cart')),
@@ -103,7 +105,7 @@ class CartPage extends ConsumerWidget {
 
                                   const SizedBox(height: 6),
 
-                                  Text('₹${item.price}'),
+                                  Text('$currency${item.price}'),
 
                                   const SizedBox(height: 4),
 
@@ -212,21 +214,21 @@ class CartPage extends ConsumerWidget {
                       children: [
                         _SummaryRow(
                           label: 'Subtotal',
-                          value: '₹${cartNotifier.subtotal}',
+                          value: '$currency${cartNotifier.subtotal}',
                         ),
 
                         const SizedBox(height: 8),
 
                         _SummaryRow(
                           label: 'Delivery fee',
-                          value: '₹${cartNotifier.deliveryFee}',
+                          value: '$currency${cartNotifier.deliveryFee}',
                         ),
 
                         const Divider(height: 24),
 
                         _SummaryRow(
                           label: 'Total',
-                          value: '₹${cartNotifier.total}',
+                          value: '$currency${cartNotifier.total}',
                           bold: true,
                         ),
 

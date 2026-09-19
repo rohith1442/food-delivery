@@ -263,7 +263,10 @@ class _OrdersPageState extends State<OrdersPage> {
                             ],
                           ),
                         ),
-                        _StatusBadge(status: status),
+                        _StatusBadge(
+                          statusCode: order['status']?.toString() ?? '',
+                          label: status,
+                        ),
                       ],
                     ),
                     const SizedBox(height: 16),
@@ -307,26 +310,80 @@ class _OrdersPageState extends State<OrdersPage> {
 }
 
 class _StatusBadge extends StatelessWidget {
-  const _StatusBadge({required this.status});
+  const _StatusBadge({required this.statusCode, required this.label});
 
-  final String status;
+  final String statusCode;
+  final String label;
 
   @override
   Widget build(BuildContext context) {
+    final colors = _statusColors(statusCode, context);
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.primaryContainer,
+        color: colors.background,
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
-        status,
+        label,
         style: TextStyle(
           fontSize: 12,
-          fontWeight: FontWeight.bold,
-          color: Theme.of(context).colorScheme.primary,
+          fontWeight: FontWeight.w700,
+          color: colors.foreground,
         ),
       ),
     );
   }
+
+  _StatusColors _statusColors(String status, BuildContext context) {
+    switch (status) {
+      case 'DELIVERED':
+        return _StatusColors(
+          background: Colors.green.withValues(alpha: 0.12),
+          foreground: Colors.green.shade700,
+        );
+      case 'CANCELLED':
+      case 'REJECTED':
+        return _StatusColors(
+          background: Colors.red.withValues(alpha: 0.10),
+          foreground: Colors.red.shade700,
+        );
+      case 'ON_THE_WAY':
+      case 'PICKED_UP':
+      case 'RIDER_ASSIGNED':
+        return _StatusColors(
+          background: Colors.blue.withValues(alpha: 0.10),
+          foreground: Colors.blue.shade700,
+        );
+      case 'PREPARING':
+      case 'READY':
+        return _StatusColors(
+          background: Colors.orange.withValues(alpha: 0.12),
+          foreground: Colors.orange.shade800,
+        );
+      case 'VENDOR_PENDING':
+        return _StatusColors(
+          background: Colors.amber.withValues(alpha: 0.16),
+          foreground: Colors.amber.shade900,
+        );
+      case 'ACCEPTED':
+        return _StatusColors(
+          background: Colors.teal.withValues(alpha: 0.10),
+          foreground: Colors.teal.shade700,
+        );
+      default:
+        return _StatusColors(
+          background: Theme.of(context).colorScheme.primaryContainer,
+          foreground: Theme.of(context).colorScheme.primary,
+        );
+    }
+  }
+}
+
+class _StatusColors {
+  const _StatusColors({required this.background, required this.foreground});
+
+  final Color background;
+  final Color foreground;
 }

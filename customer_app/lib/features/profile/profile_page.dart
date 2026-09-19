@@ -455,17 +455,21 @@ class _ProfileTile extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: Colors.grey.shade200),
       ),
-      child: ListTile(
-        leading: Icon(icon, color: color),
-        title: Text(
-          title,
-          style: TextStyle(color: color, fontWeight: FontWeight.w600),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(14),
+        child: ListTile(
+          leading: Icon(icon, color: color),
+          title: Text(
+            title,
+            style: TextStyle(color: color, fontWeight: FontWeight.w600),
+          ),
+          subtitle: subtitle != null ? Text(subtitle!) : null,
+          trailing: onTap != null && !danger
+              ? const Icon(Icons.chevron_right)
+              : null,
+          onTap: onTap,
         ),
-        subtitle: subtitle != null ? Text(subtitle!) : null,
-        trailing: onTap != null && !danger
-            ? const Icon(Icons.chevron_right)
-            : null,
-        onTap: onTap,
       ),
     );
   }

@@ -172,28 +172,32 @@ class _CustomerNotificationsPageState extends State<CustomerNotificationsPage> {
                       : Colors.grey.shade200,
                 ),
               ),
-              child: ListTile(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                onTap: () => _open(item),
-                leading: CircleAvatar(child: Icon(_icon(item))),
-                title: Text(
-                  item['title']?.toString() ?? 'Notification',
-                  style: TextStyle(
-                    fontWeight: isUnread ? FontWeight.w700 : FontWeight.w600,
+              child: Material(
+                color: Colors.transparent,
+                borderRadius: BorderRadius.circular(16),
+                child: ListTile(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
                   ),
+                  onTap: () => _open(item),
+                  leading: CircleAvatar(child: Icon(_icon(item))),
+                  title: Text(
+                    item['title']?.toString() ?? 'Notification',
+                    style: TextStyle(
+                      fontWeight: isUnread ? FontWeight.w700 : FontWeight.w600,
+                    ),
+                  ),
+                  subtitle: Text(
+                    '${item['body']?.toString() ?? ''}\n${_date(item['createdAt'])}',
+                  ),
+                  trailing: isUnread
+                      ? Icon(
+                          Icons.circle,
+                          size: 9,
+                          color: Theme.of(context).colorScheme.primary,
+                        )
+                      : null,
                 ),
-                subtitle: Text(
-                  '${item['body']?.toString() ?? ''}\n${_date(item['createdAt'])}',
-                ),
-                trailing: isUnread
-                    ? Icon(
-                        Icons.circle,
-                        size: 9,
-                        color: Theme.of(context).colorScheme.primary,
-                      )
-                    : null,
               ),
             );
           },

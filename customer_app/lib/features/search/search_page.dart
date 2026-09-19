@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/config/app_branding.dart';
 import '../home/widgets/store_card.dart';
+import '../cart/widgets/cart_floating_bar.dart';
 import '../restaurants/menu_page.dart';
 import '../restaurants/restaurants_page.dart';
 import '../restaurants/stores_api_service.dart';
@@ -199,6 +200,7 @@ class _SearchPageState extends State<SearchPage> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Search')),
+      bottomNavigationBar: const CartFloatingBar(),
       body: Column(
         children: [
           Container(

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../cart/cart_provider.dart';
+import '../cart/widgets/cart_floating_bar.dart';
 import '../products/product_details_page.dart';
 import 'stores_api_service.dart';
 
@@ -135,6 +136,7 @@ class _MenuPageState extends ConsumerState<MenuPage> {
         elevation: 0,
         foregroundColor: Colors.white,
       ),
+      bottomNavigationBar: const CartFloatingBar(),
       body: Column(
         children: [
           _buildStoreHeader(),
@@ -286,7 +288,7 @@ class _MenuPageState extends ConsumerState<MenuPage> {
     }
 
     final message = switch (result) {
-      AddToCartResult.added => 'Added to cart',
+      AddToCartResult.added => null,
       AddToCartResult.outOfStock => 'This item is out of stock',
       AddToCartResult.maxStockReached => 'Only $stock available',
       AddToCartResult.differentStore => null,

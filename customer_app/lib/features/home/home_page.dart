@@ -7,6 +7,7 @@ import '../location/saved_addresses_page.dart';
 import '../orders/orders_page.dart';
 import '../notifications/notifications_page.dart';
 import '../profile/profile_page.dart';
+import '../cart/widgets/cart_floating_bar.dart';
 import '../restaurants/menu_page.dart';
 import '../restaurants/restaurants_page.dart';
 import '../restaurants/stores_api_service.dart';
@@ -817,29 +818,35 @@ class _HomePageState extends State<HomePage> {
         ),
       ),
 
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: selectedIndex,
-        onDestinationSelected: _onNavigationTap,
-        height: 72,
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home_rounded),
-            label: 'Home',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.search_rounded),
-            label: 'Search',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.receipt_long_outlined),
-            selectedIcon: Icon(Icons.receipt_long_rounded),
-            label: 'Orders',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.person_outline_rounded),
-            selectedIcon: Icon(Icons.person_rounded),
-            label: 'Profile',
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const CartFloatingBar(margin: EdgeInsets.fromLTRB(16, 6, 16, 6)),
+          NavigationBar(
+            selectedIndex: selectedIndex,
+            onDestinationSelected: _onNavigationTap,
+            height: 72,
+            destinations: const [
+              NavigationDestination(
+                icon: Icon(Icons.home_outlined),
+                selectedIcon: Icon(Icons.home_rounded),
+                label: 'Home',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.search_rounded),
+                label: 'Search',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.receipt_long_outlined),
+                selectedIcon: Icon(Icons.receipt_long_rounded),
+                label: 'Orders',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.person_outline_rounded),
+                selectedIcon: Icon(Icons.person_rounded),
+                label: 'Profile',
+              ),
+            ],
           ),
         ],
       ),

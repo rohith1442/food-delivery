@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../cart/cart_page.dart';
 import '../cart/cart_provider.dart';
+import '../cart/widgets/cart_floating_bar.dart';
 
 class ProductDetailsPage extends ConsumerWidget {
   const ProductDetailsPage({
@@ -136,10 +137,18 @@ class ProductDetailsPage extends ConsumerWidget {
               ),
             ),
           ),
+        ],
+      ),
 
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (cart.isNotEmpty)
+              const CartFloatingBar(margin: EdgeInsets.fromLTRB(16, 8, 16, 4)),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
               child: SizedBox(
                 width: double.infinity,
                 height: 52,
@@ -162,10 +171,6 @@ class ProductDetailsPage extends ConsumerWidget {
                           }
 
                           if (result == AddToCartResult.added) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Added to cart')),
-                            );
-
                             return;
                           }
 
@@ -221,7 +226,7 @@ class ProductDetailsPage extends ConsumerWidget {
 
                             cartNotifier.clearCart();
 
-                            final replaceResult = cartNotifier.addItem(
+                            cartNotifier.addItem(
                               storeId: storeId,
                               storeName: storeName,
                               storeAddress: storeAddress,
@@ -231,17 +236,7 @@ class ProductDetailsPage extends ConsumerWidget {
                               availableStock: stock,
                             );
 
-                            if (!context.mounted) {
-                              return;
-                            }
-
-                            if (replaceResult == AddToCartResult.added) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Cart replaced and item added'),
-                                ),
-                              );
-                            }
+                            if (!context.mounted) return;
                           }
                         },
                   child: Text(
@@ -254,8 +249,8 @@ class ProductDetailsPage extends ConsumerWidget {
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

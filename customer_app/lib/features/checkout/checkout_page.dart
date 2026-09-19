@@ -441,6 +441,8 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     final items = cartState.items;
 
     final cart = ref.read(cartProvider.notifier);
+    final branding = AppBrandingController.instance.branding;
+    final currency = branding.currencySymbol;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Checkout')),
@@ -504,7 +506,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                           child: Text('${item.name} × ${item.quantity}'),
                         ),
                         Text(
-                          '₹${item.price * item.quantity}',
+                          '$currency${item.price * item.quantity}',
                           style: const TextStyle(fontWeight: FontWeight.w600),
                         ),
                       ],
@@ -514,20 +516,23 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
 
                 const Divider(height: 20),
 
-                _SummaryRow(label: 'Subtotal', value: '₹${cart.subtotal}'),
+                _SummaryRow(
+                  label: 'Subtotal',
+                  value: '$currency${cart.subtotal}',
+                ),
 
                 const SizedBox(height: 8),
 
                 _SummaryRow(
                   label: 'Delivery fee',
-                  value: '₹${cart.deliveryFee}',
+                  value: '$currency${cart.deliveryFee}',
                 ),
 
                 const Divider(height: 24),
 
                 _SummaryRow(
                   label: 'Total',
-                  value: '₹${cart.total}',
+                  value: '$currency${cart.total}',
                   bold: true,
                 ),
               ],
@@ -601,8 +606,8 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                     )
                   : Text(
                       paymentMethod == 'Online Payment'
-                          ? 'Pay • ₹${cart.total}'
-                          : 'Place Order • ₹${cart.total}',
+                          ? 'Pay • $currency${cart.total}'
+                          : 'Place Order • $currency${cart.total}',
                     ),
             ),
           ),
