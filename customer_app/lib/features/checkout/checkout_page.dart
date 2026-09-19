@@ -36,6 +36,10 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   String? _pendingPaymentId;
   String? _pendingRazorpayOrderId;
   double? _pendingOrderTotal;
+  List<Map<String, dynamic>>? _pendingOrderItems;
+  num? _pendingSubtotal;
+  num? _pendingDeliveryFee;
+  String? _pendingAddress;
 
   @override
   void initState() {
@@ -164,13 +168,29 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
 
       debugPrint('COD order created successfully: $response');
 
+      final successItems = cartState.items
+          .map<Map<String, dynamic>>(
+            (item) => {
+              'name': item.name,
+              'price': item.price,
+              'quantity': item.quantity,
+            },
+          )
+          .toList();
+      final subtotal = cart.subtotal;
+      final deliveryFee = cart.deliveryFee;
+
       cart.clearCart();
 
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
           builder: (_) => OrderSuccessPage(
             total: orderTotal,
+            subtotal: subtotal,
+            deliveryFee: deliveryFee,
+            items: successItems,
             paymentMethod: 'Cash on Delivery',
+            address: selectedAddress.address,
           ),
         ),
       );
@@ -248,6 +268,18 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       _pendingOrderTotal = total is num
           ? total.toDouble()
           : cart.total.toDouble();
+      _pendingOrderItems = cartState.items
+          .map<Map<String, dynamic>>(
+            (item) => {
+              'name': item.name,
+              'price': item.price,
+              'quantity': item.quantity,
+            },
+          )
+          .toList();
+      _pendingSubtotal = cart.subtotal;
+      _pendingDeliveryFee = cart.deliveryFee;
+      _pendingAddress = selectedAddress.address;
 
       final options = <String, dynamic>{
         'key': keyId,
@@ -373,6 +405,10 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       }
 
       final total = _pendingOrderTotal ?? 0;
+      final successItems = _pendingOrderItems ?? <Map<String, dynamic>>[];
+      final subtotal = _pendingSubtotal ?? 0;
+      final deliveryFee = _pendingDeliveryFee ?? 0;
+      final address = _pendingAddress ?? '';
 
       ref.read(cartProvider.notifier).clearCart();
 
@@ -384,8 +420,14 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
 
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
-          builder: (_) =>
-              OrderSuccessPage(total: total, paymentMethod: 'Online Payment'),
+          builder: (_) => OrderSuccessPage(
+            total: total,
+            subtotal: subtotal,
+            deliveryFee: deliveryFee,
+            items: successItems,
+            paymentMethod: 'Online Payment',
+            address: address,
+          ),
         ),
       );
     } catch (error, stackTrace) {
@@ -440,6 +482,10 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     _pendingPaymentId = null;
     _pendingRazorpayOrderId = null;
     _pendingOrderTotal = null;
+    _pendingOrderItems = null;
+    _pendingSubtotal = null;
+    _pendingDeliveryFee = null;
+    _pendingAddress = null;
   }
 
   @override

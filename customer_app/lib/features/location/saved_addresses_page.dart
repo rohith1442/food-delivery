@@ -478,6 +478,26 @@ class _SavedAddressesPageState extends State<SavedAddressesPage> {
                                           maxLines: 3,
                                           overflow: TextOverflow.ellipsis,
                                         ),
+                                        if (address.contactName.isNotEmpty ||
+                                            address
+                                                .contactPhone
+                                                .isNotEmpty) ...[
+                                          const SizedBox(height: 8),
+                                          Text(
+                                            [
+                                                  address.contactName,
+                                                  address.contactPhone,
+                                                ]
+                                                .where(
+                                                  (value) => value.isNotEmpty,
+                                                )
+                                                .join(' • '),
+                                            style: TextStyle(
+                                              color: Colors.grey.shade600,
+                                              fontSize: 13,
+                                            ),
+                                          ),
+                                        ],
                                       ],
                                     ),
                                   ),

@@ -40,6 +40,7 @@ class _HomePageState extends State<HomePage> {
 
   bool _isLoadingAddress = true;
   bool _isLoadingStores = false;
+  bool _locationPromptShown = false;
 
   String? _storesError;
 
@@ -76,6 +77,10 @@ class _HomePageState extends State<HomePage> {
           _isLoadingAddress = false;
         });
 
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _showLocationPrompt();
+        });
+
         return;
       }
 
@@ -109,6 +114,62 @@ class _HomePageState extends State<HomePage> {
         _isLoadingAddress = false;
       });
     }
+  }
+
+  Future<void> _showLocationPrompt() async {
+    if (_locationPromptShown) return;
+    _locationPromptShown = true;
+
+    final openLocation = await showModalBottomSheet<bool>(
+      context: context,
+      showDragHandle: true,
+      isDismissible: true,
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primaryContainer,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.location_on_outlined,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Set your delivery location',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Choose your location to see stores and delivery options near you.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey.shade600),
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: FilledButton.icon(
+                  onPressed: () => Navigator.pop(context, true),
+                  icon: const Icon(Icons.my_location),
+                  label: const Text('Choose Location'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (openLocation == true && mounted) await _chooseLocation();
   }
 
   Future<void> _loadStores() async {
