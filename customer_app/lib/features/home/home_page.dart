@@ -1,4 +1,3 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/config/app_branding.dart';
@@ -12,7 +11,6 @@ import '../restaurants/menu_page.dart';
 import '../restaurants/restaurants_page.dart';
 import '../restaurants/stores_api_service.dart';
 import '../search/search_page.dart';
-import 'widgets/home_header.dart';
 import 'widgets/home_category_item.dart';
 import 'widgets/home_search_bar.dart';
 import 'widgets/module_card.dart';
@@ -227,10 +225,6 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  Future<void> _logout() async {
-    await FirebaseAuth.instance.signOut();
-  }
-
   void _openRestaurants({String moduleId = 'food', String? category}) {
     final zoneId = _selectedZoneId;
 
@@ -429,36 +423,117 @@ class _HomePageState extends State<HomePage> {
   Widget _buildHeaderSliver(AppBranding branding) {
     return SliverToBoxAdapter(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            HomeHeader(
-              address: _selectedAddress,
-              loadingAddress: _isLoadingAddress,
-              onLocationTap: _chooseLocation,
-              onNotificationTap: () => Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => const CustomerNotificationsPage(),
+            Row(
+              children: [
+                if (branding.logoUrl.isNotEmpty)
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.network(
+                      branding.logoUrl,
+                      width: 44,
+                      height: 44,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, _, _) => _logoFallback(branding),
+                    ),
+                  )
+                else
+                  _logoFallback(branding),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: InkWell(
+                    onTap: _chooseLocation,
+                    borderRadius: BorderRadius.circular(12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Deliver to',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                _isLoadingAddress
+                                    ? 'Loading location...'
+                                    : _selectedAddress,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                            const Icon(
+                              Icons.keyboard_arrow_down_rounded,
+                              size: 20,
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
-              onLogoutTap: _logout,
+                const SizedBox(width: 8),
+                IconButton.filledTonal(
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const CustomerNotificationsPage(),
+                    ),
+                  ),
+                  icon: const Icon(Icons.notifications_none_rounded),
+                ),
+              ],
             ),
-            const SizedBox(height: 22),
+            const SizedBox(height: 24),
             Text(
-              branding.appName,
+              'What are you craving today?',
               style: Theme.of(context).textTheme.headlineSmall
-                  ?.copyWith(fontWeight: FontWeight.bold),
+                  ?.copyWith(fontWeight: FontWeight.w800, letterSpacing: -0.4),
             ),
-            const SizedBox(height: 4),
-            Text(branding.tagline, style: TextStyle(color: Colors.grey[700])),
-            const SizedBox(height: 20),
+            const SizedBox(height: 6),
+            Text(
+              branding.deliveryPromiseText,
+              style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+            ),
+            const SizedBox(height: 18),
             HomeSearchBar(
               controller: _searchController,
               onChanged: _onSearchChanged,
             ),
-            const SizedBox(height: 22),
+            const SizedBox(height: 24),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _logoFallback(AppBranding branding) {
+    return Container(
+      width: 44,
+      height: 44,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: branding.primary,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        branding.shortName.isNotEmpty
+            ? branding.shortName[0].toUpperCase()
+            : 'F',
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
         ),
       ),
     );
@@ -541,9 +616,9 @@ class _HomePageState extends State<HomePage> {
     return [
       SliverToBoxAdapter(
         child: SizedBox(
-          height: 170,
+          height: 190,
           child: PageView.builder(
-            controller: PageController(viewportFraction: 0.92),
+            controller: PageController(viewportFraction: 0.94),
             itemCount: banners.length,
             itemBuilder: (context, index) {
               final banner = banners[index];

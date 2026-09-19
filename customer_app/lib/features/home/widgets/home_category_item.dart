@@ -19,7 +19,7 @@ class HomeCategoryItem extends StatelessWidget {
     final primary = Theme.of(context).colorScheme.primary;
 
     return SizedBox(
-      width: 88,
+      width: 82,
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(16),

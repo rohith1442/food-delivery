@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/config/app_branding.dart';
-
 class PromoBanner extends StatelessWidget {
   const PromoBanner({
     super.key,
@@ -18,60 +16,50 @@ class PromoBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final branding = AppBrandingController.instance.branding;
-
-    final primary = branding.primary;
-    final secondary = branding.secondary;
-
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(20),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(colors: [primary, secondary]),
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Row(
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: Stack(
+          fit: StackFit.expand,
           children: [
-            Expanded(
+            imageUrl.isNotEmpty
+                ? Image.network(
+                    imageUrl,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, _, _) => _fallbackBackground(),
+                  )
+                : _fallbackBackground(),
+            Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.centerRight,
+                  end: Alignment.centerLeft,
+                  colors: [Colors.transparent, Colors.black54],
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   Text(
                     title,
                     style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 21,
-                      fontWeight: FontWeight.bold,
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
                   const SizedBox(height: 6),
                   Text(
                     subtitle,
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.9),
-                      fontSize: 13,
-                    ),
+                    style: const TextStyle(color: Colors.white70, fontSize: 14),
                   ),
                 ],
-              ),
-            ),
-            const SizedBox(width: 12),
-            ClipOval(
-              child: SizedBox(
-                width: 60,
-                height: 60,
-                child: imageUrl.isNotEmpty
-                    ? Image.network(
-                        imageUrl,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return _fallbackIcon();
-                        },
-                      )
-                    : _fallbackIcon(),
               ),
             ),
           ],
@@ -80,10 +68,10 @@ class PromoBanner extends StatelessWidget {
     );
   }
 
-  Widget _fallbackIcon() {
+  Widget _fallbackBackground() {
     return Container(
-      color: Colors.white.withValues(alpha: 0.16),
-      child: const Icon(Icons.delivery_dining, size: 34, color: Colors.white),
+      color: Colors.blueGrey.shade500,
+      child: const Icon(Icons.delivery_dining, size: 48, color: Colors.white),
     );
   }
 }

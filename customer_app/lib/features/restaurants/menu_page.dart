@@ -129,7 +129,12 @@ class _MenuPageState extends ConsumerState<MenuPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(widget.storeName)),
+      extendBodyBehindAppBar: true,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        foregroundColor: Colors.white,
+      ),
       body: Column(
         children: [
           _buildStoreHeader(),
@@ -145,56 +150,93 @@ class _MenuPageState extends ConsumerState<MenuPage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SizedBox(
-          height: 190,
+          height: 240,
           width: double.infinity,
-          child: widget.storeImageUrl.isNotEmpty
-              ? Image.network(
-                  widget.storeImageUrl,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, error, stackTrace) =>
-                      const Icon(Icons.storefront, size: 60),
-                )
-              : Container(
-                  color: Colors.grey.shade200,
-                  child: const Icon(Icons.storefront, size: 60),
-                ),
-        ),
-        Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: Stack(
+            fit: StackFit.expand,
             children: [
-              Text(
-                widget.storeName,
-                style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  const Icon(Icons.star, color: Colors.amber, size: 20),
-                  const SizedBox(width: 4),
-                  Text(
-                    widget.ratingCount > 0
-                        ? '${widget.storeRating.toStringAsFixed(1)} (${widget.ratingCount})'
-                        : 'New',
+              widget.storeImageUrl.isNotEmpty
+                  ? Image.network(
+                      widget.storeImageUrl,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, _, _) => _storePlaceholder(),
+                    )
+                  : _storePlaceholder(),
+              const DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Colors.black54, Colors.transparent],
                   ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  const Icon(Icons.location_on_outlined, size: 18),
-                  const SizedBox(width: 6),
-                  Expanded(child: Text(widget.storeAddress)),
-                ],
+                ),
               ),
             ],
           ),
         ),
+        Transform.translate(
+          offset: const Offset(0, -18),
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surface,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Colors.grey.shade200),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  widget.storeName,
+                  style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    const Icon(Icons.star, color: Colors.amber, size: 20),
+                    const SizedBox(width: 4),
+                    Text(
+                      widget.ratingCount > 0
+                          ? '${widget.storeRating.toStringAsFixed(1)} (${widget.ratingCount})'
+                          : 'New',
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    const Icon(Icons.location_on_outlined, size: 18),
+                    const SizedBox(width: 6),
+                    Expanded(child: Text(widget.storeAddress)),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    const Icon(Icons.schedule_outlined, size: 18),
+                    const SizedBox(width: 6),
+                    Text(
+                      '25–35 min',
+                      style: TextStyle(color: Colors.grey.shade700),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
       ],
+    );
+  }
+
+  Widget _storePlaceholder() {
+    return Container(
+      color: Colors.grey.shade200,
+      child: const Center(child: Icon(Icons.storefront, size: 60)),
     );
   }
 
@@ -375,78 +417,96 @@ class _MenuPageState extends ConsumerState<MenuPage> {
 
           final imageUrl = product['imageUrl']?.toString();
 
-          return Card(
-            margin: const EdgeInsets.only(bottom: 12),
-            child: ListTile(
-              contentPadding: const EdgeInsets.all(12),
-              onTap: productId.isEmpty
-                  ? null
-                  : () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => ProductDetailsPage(
-                            storeId: widget.storeId,
-                            storeName: widget.storeName,
-                            storeAddress: widget.storeAddress,
-                            productId: productId,
-                            name: name,
-                            description: description,
-                            price: price,
-                            stock: stock,
+          return InkWell(
+            borderRadius: BorderRadius.circular(18),
+            onTap: productId.isEmpty
+                ? null
+                : () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => ProductDetailsPage(
+                          storeId: widget.storeId,
+                          storeName: widget.storeName,
+                          storeAddress: widget.storeAddress,
+                          productId: productId,
+                          name: name,
+                          description: description,
+                          price: price,
+                          stock: stock,
+                        ),
+                      ),
+                    );
+                  },
+            child: Container(
+              margin: const EdgeInsets.only(bottom: 16),
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surface,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: Colors.grey.shade200),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          name,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
-                      );
-                    },
-              leading: _ProductImage(imageUrl: imageUrl),
-              title: Text(
-                name,
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-              subtitle: Padding(
-                padding: const EdgeInsets.only(top: 6),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (description.isNotEmpty)
-                      Text(
-                        description,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    const SizedBox(height: 6),
-                    Text(
-                      stock <= 0
-                          ? 'Out of stock'
-                          : stock <= 5
-                          ? 'Only $stock left'
-                          : 'In stock',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                        color: stock > 0 ? Colors.green : Colors.red,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              trailing: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    '₹$price',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
+                        if (description.isNotEmpty) ...[
+                          const SizedBox(height: 6),
+                          Text(
+                            description,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(color: Colors.grey.shade600),
+                          ),
+                        ],
+                        const SizedBox(height: 12),
+                        Text(
+                          '₹$price',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          stock <= 0
+                              ? 'Out of stock'
+                              : stock <= 5
+                              ? 'Only $stock left'
+                              : 'In stock',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: stock > 0 ? Colors.green : Colors.red,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  SizedBox(
-                    height: 34,
-                    child: FilledButton(
-                      onPressed: stock <= 0 ? null : () => _addToCart(product),
-                      child: const Text('ADD'),
-                    ),
+                  const SizedBox(width: 14),
+                  Column(
+                    children: [
+                      _ProductImage(imageUrl: imageUrl),
+                      const SizedBox(height: 8),
+                      SizedBox(
+                        width: 84,
+                        height: 36,
+                        child: OutlinedButton(
+                          onPressed: stock <= 0
+                              ? null
+                              : () => _addToCart(product),
+                          child: const Text('ADD'),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -470,8 +530,8 @@ class _ProductImage extends StatelessWidget {
         borderRadius: BorderRadius.circular(10),
         child: Image.network(
           imageUrl!,
-          width: 70,
-          height: 70,
+          width: 105,
+          height: 90,
           fit: BoxFit.cover,
           errorBuilder: (context, error, stackTrace) {
             return _placeholder(context);
@@ -485,8 +545,8 @@ class _ProductImage extends StatelessWidget {
 
   Widget _placeholder(BuildContext context) {
     return Container(
-      width: 70,
-      height: 70,
+      width: 105,
+      height: 90,
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.primaryContainer,
         borderRadius: BorderRadius.circular(10),
