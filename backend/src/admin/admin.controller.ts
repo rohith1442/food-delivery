@@ -6,12 +6,15 @@ import {
   Patch,
   Post,
   Query,
+  Req,
   UploadedFile,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
+import type { Request } from 'express';
 
 import { FileInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
 
 import { AuthGuard } from '../auth/auth.guard.js';
 import { Roles } from '../auth/roles.decorator.js';
@@ -166,6 +169,7 @@ async updateZone(
   @Post('modules/:moduleId/image')
   @UseInterceptors(
     FileInterceptor('file', {
+      storage: memoryStorage(),
       limits: {
         fileSize: 5 * 1024 * 1024,
       },
@@ -182,6 +186,7 @@ async updateZone(
   @Post('settings/image')
   @UseInterceptors(
     FileInterceptor('file', {
+      storage: memoryStorage(),
       limits: {
         fileSize: 5 * 1024 * 1024,
       },
@@ -190,7 +195,19 @@ async updateZone(
   async uploadSettingsImage(
     @Query('type') type: string,
     @UploadedFile() file: Express.Multer.File,
+    @Req() request: Request,
   ) {
+    console.log('[Admin API] settings image upload', {
+      method: request.method,
+      contentType: request.headers['content-type'],
+      userAgent: request.headers['user-agent'],
+      type,
+      hasFile: Boolean(file),
+      fileName: file?.originalname,
+      mimeType: file?.mimetype,
+      size: file?.size,
+    });
+
     return this.adminService.uploadSettingsImage(type, file);
   }
 

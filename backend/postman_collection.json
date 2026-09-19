@@ -123,6 +123,46 @@
         { "name": "PATCH /admin/modules/:moduleId/status", "request": { "method": "PATCH", "header": [{ "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }, { "key": "Content-Type", "value": "application/json", "type": "text" }], "body": { "mode": "raw", "raw": "{\n  \"isActive\": true\n}" }, "url": "{{baseUrl}}/admin/modules/{{moduleId}}/status" } },
         { "name": "GET /admin/dashboard", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }], "url": "{{baseUrl}}/admin/dashboard" } },
         { "name": "GET /admin/settings", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }], "url": "{{baseUrl}}/admin/settings" } },
+        {
+          "name": "POST /admin/settings/image (logo)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": ""
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/admin/settings/image?type=logo"
+          }
+        },
+        {
+          "name": "POST /admin/settings/image (promo banner)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": ""
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/admin/settings/image?type=promo-banner"
+          }
+        },
         { "name": "PATCH /admin/settings", "request": { "method": "PATCH", "header": [{ "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }, { "key": "Content-Type", "value": "application/json", "type": "text" }], "body": { "mode": "raw", "raw": "{\n  \"deliveryFee\": 40,\n  \"minimumOrder\": 200,\n  \"maintenanceMode\": false,\n  \"customerMinVersion\": \"1.0.0\",\n  \"customerForceUpdate\": false\n}" }, "url": "{{baseUrl}}/admin/settings" } }
       ]
     },

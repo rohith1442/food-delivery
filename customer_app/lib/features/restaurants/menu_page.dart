@@ -24,7 +24,7 @@ class MenuPage extends ConsumerStatefulWidget {
   final int ratingCount;
 
   @override
-  State<MenuPage> createState() => _MenuPageState();
+  ConsumerState<MenuPage> createState() => _MenuPageState();
 }
 
 class _MenuPageState extends ConsumerState<MenuPage> {
@@ -151,7 +151,7 @@ class _MenuPageState extends ConsumerState<MenuPage> {
               ? Image.network(
                   widget.storeImageUrl,
                   fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) =>
+                  errorBuilder: (_, error, stackTrace) =>
                       const Icon(Icons.storefront, size: 60),
                 )
               : Container(

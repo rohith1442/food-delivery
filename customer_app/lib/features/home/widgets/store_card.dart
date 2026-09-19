@@ -45,7 +45,8 @@ class StoreCard extends StatelessWidget {
                   ? Image.network(
                       imageUrl,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => _storePlaceholder(context),
+                      errorBuilder: (_, error, stackTrace) =>
+                          _storePlaceholder(context),
                     )
                   : _storePlaceholder(context),
             ),

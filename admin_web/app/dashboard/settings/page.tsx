@@ -5,10 +5,12 @@ import {
   FormEvent,
   useCallback,
   useEffect,
+  useRef,
   useState,
 } from "react";
 
 import { api } from "@/lib/api";
+import { auth } from "@/lib/firebase";
 
 type PromoBanner = {
   enabled: boolean;
@@ -162,6 +164,8 @@ export default function SettingsPage() {
   const [uploadedImageNotice, setUploadedImageNotice] =
     useState<string | null>(null);
 
+  const uploadInFlight = useRef(false);
+
   const loadSettings = useCallback(async () => {
     try {
       setLoading(true);
@@ -250,15 +254,55 @@ export default function SettingsPage() {
     file: File,
     type: "logo" | "promo-banner",
   ) => {
+    if (uploadInFlight.current) {
+      throw new Error("An image upload is already in progress.");
+    }
+
+    uploadInFlight.current = true;
     const formData = new FormData();
-    formData.append("file", file);
+    formData.append("file", file, file.name);
 
-    const response = await api.post<{
-      success: boolean;
-      imageUrl: string;
-    }>(`/admin/settings/image?type=${type}`, formData);
+    const token = auth.currentUser
+      ? await auth.currentUser.getIdToken()
+      : null;
+    const uploadUrl =
+      `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000"}/admin/settings/image?type=${encodeURIComponent(type)}`;
 
-    return response.data.imageUrl;
+    console.log("[settings image upload] request", {
+      url: uploadUrl,
+      type,
+      fileName: file.name,
+      fileType: file.type,
+      fileSize: file.size,
+      hasAuthToken: Boolean(token),
+    });
+
+    try {
+      const response = await fetch(uploadUrl, {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        body: formData,
+      });
+
+      console.log("[settings image upload] response", {
+        status: response.status,
+        ok: response.ok,
+      });
+
+      const data = (await response.json()) as {
+        success?: boolean;
+        imageUrl?: string;
+        message?: string;
+      };
+
+      if (!response.ok || !data.imageUrl) {
+        throw new Error(data.message ?? "Unable to upload image.");
+      }
+
+      return data.imageUrl;
+    } finally {
+      uploadInFlight.current = false;
+    }
   };
 
   const toggleModule = (

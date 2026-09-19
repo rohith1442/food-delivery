@@ -6,12 +6,23 @@ export const api = axios.create({
   baseURL:
     process.env.NEXT_PUBLIC_API_URL ??
     "http://localhost:3000",
-  headers: {
-    "Content-Type": "application/json",
-  },
 });
 
 api.interceptors.request.use(async (config) => {
+  if (
+    typeof FormData !== "undefined" &&
+    config.data instanceof FormData
+  ) {
+    if (config.headers) {
+      if (typeof config.headers.delete === "function") {
+        config.headers.delete("Content-Type");
+      } else {
+        delete config.headers["Content-Type"];
+        delete config.headers["content-type"];
+      }
+    }
+  }
+
   const user = auth.currentUser;
 
   if (user) {
