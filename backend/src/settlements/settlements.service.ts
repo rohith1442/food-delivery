@@ -53,16 +53,41 @@ export class SettlementsService {
     return (await merchantRef.get()).data();
   }
 
-  async getTransactions(partyType: 'MERCHANT' | 'DELIVERY_PARTNER', partyId: string) {
+  async getTransactions(partyType: 'MERCHANT' | 'DELIVERY_PARTNER', partyId: string, days?: number) {
     const snapshot = await this.firebase.getFirestore().collection('settlements').where('partyType', '==', partyType).where('partyId', '==', partyId).get();
     const transactions = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })).sort((a: any, b: any) => String(b.createdAt ?? '').localeCompare(String(a.createdAt ?? '')));
+    const periodStart = days && days > 0 ? new Date(Date.now() - (days - 1) * 24 * 60 * 60 * 1000) : null;
+    if (periodStart) periodStart.setHours(0, 0, 0, 0);
+    const periodTransactions = periodStart
+      ? transactions.filter((item: any) => {
+          const createdAt = new Date(item.createdAt ?? '');
+          return !Number.isNaN(createdAt.getTime()) && createdAt >= periodStart;
+        })
+      : transactions;
     const today = new Date();
     const todayPrefix = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
     const sum = (list: any[], field: string) => list.reduce((total, item) => total + Number(item[field] ?? 0), 0);
     const todayItems = transactions.filter((item: any) => String(item.createdAt ?? '').startsWith(todayPrefix));
-    const pending = transactions.filter((item: any) => ['PENDING', 'ON_HOLD', 'PROCESSING'].includes(item.status));
-    const summary = { todayGross: sum(todayItems, 'grossAmount'), todayCommission: sum(todayItems, 'commissionAmount'), todayNet: sum(todayItems, 'netAmount'), pendingSettlement: sum(pending, 'netAmount'), processing: sum(transactions.filter((item: any) => item.status === 'PROCESSING'), 'netAmount'), paid: sum(transactions.filter((item: any) => item.status === 'PAID'), 'netAmount'), failed: sum(transactions.filter((item: any) => item.status === 'FAILED'), 'netAmount'), lifetimeGross: sum(transactions, 'grossAmount'), lifetimeCommission: sum(transactions, 'commissionAmount'), lifetimeNet: sum(transactions, 'netAmount') };
-    return { success: true, transactions, summary };
+    const pending = periodTransactions.filter((item: any) => ['PENDING', 'ON_HOLD', 'PROCESSING', 'PAYOUT_RESERVED'].includes(item.status));
+    const summary = {
+      periodDays: days ?? null,
+      totalTransactions: periodTransactions.length,
+      gross: sum(periodTransactions, 'grossAmount'),
+      commission: sum(periodTransactions, 'commissionAmount'),
+      net: sum(periodTransactions, 'netAmount'),
+      paid: sum(periodTransactions.filter((item: any) => item.status === 'PAID'), 'netAmount'),
+      pendingSettlement: sum(pending, 'netAmount'),
+      processing: sum(periodTransactions.filter((item: any) => item.status === 'PROCESSING'), 'netAmount'),
+      onHold: sum(periodTransactions.filter((item: any) => item.status === 'ON_HOLD'), 'netAmount'),
+      failed: sum(periodTransactions.filter((item: any) => item.status === 'FAILED'), 'netAmount'),
+      todayGross: sum(todayItems, 'grossAmount'),
+      todayCommission: sum(todayItems, 'commissionAmount'),
+      todayNet: sum(todayItems, 'netAmount'),
+      lifetimeGross: sum(transactions, 'grossAmount'),
+      lifetimeCommission: sum(transactions, 'commissionAmount'),
+      lifetimeNet: sum(transactions, 'netAmount'),
+    };
+    return { success: true, transactions: periodTransactions, summary };
   }
 
   async getOrderSettlements(orderId: string) { const snapshot = await this.firebase.getFirestore().collection('settlements').where('orderId', '==', orderId).get(); return { success: true, settlements: snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })) }; }

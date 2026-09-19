@@ -13,6 +13,7 @@ class _MerchantEarningsPageState extends State<MerchantEarningsPage> {
   final _api = EarningsApiService();
   Map<String, dynamic>? _summary;
   List<Map<String, dynamic>> _items = [];
+  int _selectedDays = 7;
   bool _loading = true;
   @override
   void initState() {
@@ -23,8 +24,8 @@ class _MerchantEarningsPageState extends State<MerchantEarningsPage> {
   Future<void> _load() async {
     try {
       final result = await Future.wait([
-        _api.getSummary(),
-        _api.getTransactions(),
+        _api.getSummary(days: _selectedDays),
+        _api.getTransactions(days: _selectedDays),
       ]);
       if (mounted) {
         setState(() {
@@ -37,6 +38,20 @@ class _MerchantEarningsPageState extends State<MerchantEarningsPage> {
       if (mounted) setState(() => _loading = false);
     }
   }
+
+  String _money(dynamic value, String currency) {
+    final amount = value is num
+        ? value.toDouble()
+        : double.tryParse(value?.toString() ?? '') ?? 0;
+    return '$currency${amount.toStringAsFixed(0)}';
+  }
+
+  Widget _metric(String label, dynamic value, String currency) => Card(
+    child: ListTile(
+      title: Text(label),
+      trailing: Text(_money(value, currency)),
+    ),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -53,20 +68,31 @@ class _MerchantEarningsPageState extends State<MerchantEarningsPage> {
               child: ListView(
                 padding: const EdgeInsets.all(20),
                 children: [
-                  Card(
-                    child: ListTile(
-                      title: const Text('Lifetime net earnings'),
-                      trailing: Text('$currency${summary['lifetimeNet'] ?? 0}'),
-                    ),
+                  SegmentedButton<int>(
+                    segments: const [
+                      ButtonSegment(value: 7, label: Text('7 Days')),
+                      ButtonSegment(value: 30, label: Text('30 Days')),
+                    ],
+                    selected: {_selectedDays},
+                    onSelectionChanged: (selection) {
+                      setState(() {
+                        _selectedDays = selection.first;
+                        _loading = true;
+                      });
+                      _load();
+                    },
                   ),
-                  Card(
-                    child: ListTile(
-                      title: const Text('Pending settlement'),
-                      trailing: Text(
-                        '$currency${summary['pendingSettlement'] ?? 0}',
-                      ),
-                    ),
+                  const SizedBox(height: 12),
+                  _metric('Net earnings', summary['net'], currency),
+                  _metric('Gross earnings', summary['gross'], currency),
+                  _metric('Commission', summary['commission'], currency),
+                  _metric('Paid', summary['paid'], currency),
+                  _metric(
+                    'Pending settlement',
+                    summary['pendingSettlement'],
+                    currency,
                   ),
+                  _metric('On hold', summary['onHold'], currency),
                   const SizedBox(height: 20),
                   ..._items.map(
                     (item) => Card(

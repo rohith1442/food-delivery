@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Post, Req, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '../auth/auth.guard.js';
 import { Roles } from '../auth/roles.decorator.js';
 import { RolesGuard } from '../auth/roles.guard.js';
@@ -21,8 +21,8 @@ export class AdminPayoutController {
 @Roles('MERCHANT')
 export class MerchantSettlementsController {
   constructor(private readonly service: SettlementsService) {}
-  @Get('earnings/summary') summary(@Req() req: any) { return this.service.getTransactions('MERCHANT', req.user.uid); }
-  @Get('earnings/transactions') transactions(@Req() req: any) { return this.service.getTransactions('MERCHANT', req.user.uid); }
+  @Get('earnings/summary') summary(@Req() req: any, @Query('days') days?: string) { return this.service.getTransactions('MERCHANT', req.user.uid, days ? Number(days) : undefined); }
+  @Get('earnings/transactions') transactions(@Req() req: any, @Query('days') days?: string) { return this.service.getTransactions('MERCHANT', req.user.uid, days ? Number(days) : undefined); }
   @Get('settlements') settlements(@Req() req: any) { return this.service.getTransactions('MERCHANT', req.user.uid); }
 }
 
@@ -31,5 +31,5 @@ export class MerchantSettlementsController {
 @Roles('DELIVERY')
 export class DeliverySettlementsController {
   constructor(private readonly service: SettlementsService) {}
-  @Get('earnings') earnings(@Req() req: any) { return this.service.getTransactions('DELIVERY_PARTNER', req.user.uid); }
+  @Get('earnings') earnings(@Req() req: any, @Query('days') days?: string) { return this.service.getTransactions('DELIVERY_PARTNER', req.user.uid, days ? Number(days) : undefined); }
 }

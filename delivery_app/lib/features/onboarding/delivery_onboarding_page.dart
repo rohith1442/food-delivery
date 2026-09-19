@@ -28,7 +28,7 @@ class _DeliveryOnboardingPageState extends State<DeliveryOnboardingPage> {
       _confirm = TextEditingController(),
       _ifsc = TextEditingController(),
       _upi = TextEditingController();
-  String _vehicleType = 'BIKE';
+  final String _vehicleType = 'BIKE';
   bool _loading = false;
   String? _error;
   final Map<String, PlatformFile> _documents = {};
@@ -50,8 +50,6 @@ class _DeliveryOnboardingPageState extends State<DeliveryOnboardingPage> {
       onTap: () => _pickDocument(type),
     ),
   );
-  bool get _needsVehicleDocuments =>
-      ['BIKE', 'SCOOTER', 'CAR'].contains(_vehicleType);
   @override
   void dispose() {
     for (final controller in [
@@ -87,18 +85,21 @@ class _DeliveryOnboardingPageState extends State<DeliveryOnboardingPage> {
       _ifsc,
     ];
     if (required.any((field) => field.text.trim().isEmpty) ||
-        (_needsVehicleDocuments &&
-            (_vehicleNumber.text.trim().isEmpty ||
-                _licence.text.trim().isEmpty))) {
+        _vehicleNumber.text.trim().isEmpty ||
+        _licence.text.trim().isEmpty) {
       return setState(() => _error = 'Please complete all required fields.');
     }
     if (_account.text.trim() != _confirm.text.trim()) {
       return setState(() => _error = 'Bank account numbers do not match.');
     }
-    final requiredDocuments = ['IDENTITY_PROOF', 'PAN', 'BANK_PROOF'];
-    if (_needsVehicleDocuments) {
-      requiredDocuments.addAll(['DRIVING_LICENCE', 'RC', 'INSURANCE']);
-    }
+    final requiredDocuments = [
+      'IDENTITY_PROOF',
+      'PAN',
+      'BANK_PROOF',
+      'DRIVING_LICENCE',
+      'RC',
+      'INSURANCE',
+    ];
     for (final type in requiredDocuments) {
       if (!_documents.containsKey(type)) {
         return setState(() => _error = '$type document is required.');
@@ -118,12 +119,9 @@ class _DeliveryOnboardingPageState extends State<DeliveryOnboardingPage> {
         'panNumber': _pan.text.trim(),
         'vehicleType': _vehicleType,
         'vehicleNumber': _vehicleNumber.text.trim(),
-        if (_needsVehicleDocuments)
-          'drivingLicenceNumber': _licence.text.trim(),
-        if (_needsVehicleDocuments)
-          'drivingLicenceExpiry': _licenceExpiry.text.trim(),
-        if (_needsVehicleDocuments)
-          'insuranceExpiry': _insuranceExpiry.text.trim(),
+        'drivingLicenceNumber': _licence.text.trim(),
+        'drivingLicenceExpiry': _licenceExpiry.text.trim(),
+        'insuranceExpiry': _insuranceExpiry.text.trim(),
         'bank': {
           'beneficiaryName': _beneficiary.text.trim(),
           'accountNumber': _account.text.trim(),
@@ -205,35 +203,24 @@ class _DeliveryOnboardingPageState extends State<DeliveryOnboardingPage> {
         _dateField('Date of birth', _dob),
         _field('Address', _address),
         _field('PAN', _pan),
-        DropdownButtonFormField<String>(
-          initialValue: _vehicleType,
-          decoration: const InputDecoration(labelText: 'Vehicle type'),
-          items: const ['BIKE', 'SCOOTER', 'CAR', 'BICYCLE', 'WALKER']
-              .map(
-                (value) => DropdownMenuItem(value: value, child: Text(value)),
-              )
-              .toList(),
-          onChanged: (value) {
-            if (value != null) setState(() => _vehicleType = value);
-          },
+        TextFormField(
+          initialValue: 'Bike',
+          readOnly: true,
+          decoration: InputDecoration(labelText: 'Vehicle type'),
         ),
-        if (_needsVehicleDocuments) ...[
-          _field('Vehicle number', _vehicleNumber),
-          _field('Driving licence number', _licence),
-          _dateField('Driving licence expiry', _licenceExpiry),
-          _dateField('Insurance expiry', _insuranceExpiry),
-        ],
+        _field('Vehicle number', _vehicleNumber),
+        _field('Driving licence number', _licence),
+        _dateField('Driving licence expiry', _licenceExpiry),
+        _dateField('Insurance expiry', _insuranceExpiry),
         const SizedBox(height: 18),
         Text('Bank Details', style: Theme.of(context).textTheme.titleLarge),
         const SizedBox(height: 14),
         _documentTile('IDENTITY_PROOF', 'Identity proof'),
         _documentTile('PAN', 'PAN document'),
         _documentTile('BANK_PROOF', 'Bank proof'),
-        if (_needsVehicleDocuments) ...[
-          _documentTile('DRIVING_LICENCE', 'Driving licence'),
-          _documentTile('RC', 'Vehicle RC'),
-          _documentTile('INSURANCE', 'Vehicle insurance'),
-        ],
+        _documentTile('DRIVING_LICENCE', 'Driving licence'),
+        _documentTile('RC', 'Vehicle RC'),
+        _documentTile('INSURANCE', 'Vehicle insurance'),
         _field('Beneficiary name', _beneficiary),
         _field('Account number', _account),
         _field('Confirm account number', _confirm),
